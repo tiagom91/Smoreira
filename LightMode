@@ -1,0 +1,1485 @@
+# Tradução para PT-PT do blueprint "Sensor Light" (v8.7) de Blackshome
+# Original: https://gist.github.com/Blackshome/6edfec0ff6a25c5da0d07b88dc908238
+#
+# COMO USAR: este ficheiro contém apenas o bloco "blueprint:" (nome, descrição e
+# todos os campos de configuração). Substitua, no ficheiro original, tudo o que
+# vai de "blueprint:" até à linha anterior a "# If motion sensor turns ON again
+# within the time delay..." (onde começa "mode: restart") por este bloco.
+# O resto do ficheiro (variables, triggers, conditions, actions) NÃO leva tradução.
+#
+# Nada foi alterado em: chaves, "value:", "default:", seletores, entity_id, links.
+
+blueprint:
+  name: Luz com Sensor
+  description: >
+    # 💡 Luz com Sensor
+
+    **Versão: 8.7**
+
+    A sua iluminação à sua maneira - assuma o controlo e personalize-a na perfeição! 💡✨
+
+    **Se gosta dos meus blueprints e quer demonstrar o seu apoio ou simplesmente agradecer?** [Clique aqui](https://www.paypal.com/donate/?hosted_button_id=WAZS3QSDTPGA8) 🙂
+
+    <details>
+      <summary><b>O Processo da Automação:</b> 👈</summary>
+
+    - **Acionador:**
+      - Pode escolher quaisquer [sensores binários](https://www.home-assistant.io/integrations/binary_sensor/) ou [horários](https://www.home-assistant.io/integrations/schedule) para acionar a automação.
+      - Um sensor acionador, como um sensor de movimento, ativa luzes, interruptores, cenas e scripts quando a automação é acionada.
+      - Um atraso de tempo inicia o processo de desligar depois de todos os acionadores ficarem inativos. Consulte o [agrupamento](https://community.home-assistant.io/t/481048/34) de sensores para mais informações.
+      - Se os acionadores forem ativados novamente antes de o atraso terminar, a automação reinicia-se para manter a iluminação contínua.
+
+    - **Integração de Cenas e Scripts:**
+      - As cenas ou scripts oferecem uma personalização adicional dos seus espaços.
+
+    - **Opções de Controlo das Luzes:**
+      - Utilize o "Controlo das Luzes" para ajustar a luminosidade, a temperatura de cor, a cor e os tempos de transição.
+      - Reduza as luzes para uma percentagem de luminosidade inferior antes de as desligar.
+
+    - **Opções de Iluminação Dinâmica:**
+      - Opte pela "Iluminação Dinâmica" para ajustar automaticamente a luminosidade com base nos valores de lux e/ou ajustar a luminosidade e a temperatura de cor de acordo com a posição do sol ou a hora do dia.
+      - Opte por utilizar a "Opção de Controlo de Estado", que permite alternar entre iluminação dinâmica e iluminação normal consoante o estado de ativação da entidade.
+
+    - **Substituição Manual:**
+      - Utilize as "Opções de Bypass" para contornar manualmente os sensores acionadores, obtendo controlo manual e personalização adicional.
+
+    - **Opções de Elevação do Sol:**
+      - Utilize a "Elevação do Sol" para restringir a automação às condições de menor luminosidade, de acordo com a posição do sol.
+
+    - **Opções de Deteção de Luz Ambiente:**
+      - Configure um sensor de luz ambiente para ativar em condições de pouca luz, personalizável com valores de LUX específicos.
+
+    - **Opções Baseadas no Tempo:**
+      - Especifique horas de início e de fim precisas, juntamente com os dias da semana, para definir quando a automação pode ser executada.
+
+    - **Opção de Controlo de Estado:**
+      - Permite que a automação seja executada quando a entidade se encontra no estado de ativação selecionado (LIGADO ou DESLIGADO).
+
+    - **Opções de Localização de Dispositivos:**
+      - Utilize o "Localizador de Dispositivos" para ativar a automação quando está em casa ou em zonas específicas, evitando ativações desnecessárias. Esta funcionalidade é particularmente útil para evitar ativações desnecessárias das luzes quando os animais de estimação acionam os sensores e não está ninguém em casa.
+
+    - **Modo Luzes Noturnas:**
+      - Ative as "Luzes Noturnas" para uma iluminação mais suave durante as atividades noturnas, ativadas automaticamente com base em condições.
+      - Opte por utilizar o "Brilho Noturno". Esta funcionalidade ativa uma luz de baixa intensidade quando não é detetado nenhum acionador, criando um ambiente subtil, ideal para a noite.
+
+    - **Salvaguardas no Reinício do HA:**
+      - Beneficie de salvaguardas integradas para os reinícios do Home Assistant.
+
+    - **Integração de Add-On para Blueprints:**
+      - Sensor Light Add-On - Melhora a automação do controlo multimédia. [Clique aqui](https://community.home-assistant.io/t/591824) para saber mais.
+      - Bathroom Humidity Exhaust Fan - Mantém as luzes LIGADAS durante o duche. [Clique aqui](https://community.home-assistant.io/t/509992) para saber mais.
+
+    </details>
+
+    Precisa de ajuda?
+      - As Definições e Diretrizes de Boas Práticas: [Clique aqui](https://community.home-assistant.io/t/481048/345)
+      - FAQ: [Clique aqui](https://community.home-assistant.io/t/481048/6)
+      - Suporte da Comunidade, Incluindo Atualizações: [Clique aqui](https://community.home-assistant.io/t/481048)
+
+    Obrigatório = *
+  domain: automation
+  input:
+    trigger:
+      name: "Acionador *"
+      icon: mdi:cog-outline
+      collapsed: true
+      input:
+        motion_trigger:
+          name: Sensor Acionador - Sensores Binários - Horário *
+          description: >
+            Os sensores acionadores são responsáveis por LIGAR e DESLIGAR as luzes, interruptores, cenas e scripts.
+            Pode escolher quaisquer [sensores binários](https://www.home-assistant.io/integrations/binary_sensor/) como acionadores.
+            Em alternativa, se preferir um acionador baseado no tempo, pode também adicionar um [auxiliar de horário](https://community.home-assistant.io/t/481048/1616).
+
+            Ao utilizar vários sensores acionadores, é aconselhável agrupá-los através de um auxiliar de grupo. Isto garante uma execução mais fluida da automação e evita conflitos.
+            Para mais informações sobre o agrupamento dos seus sensores acionadores [Clique aqui](https://community.home-assistant.io/t/481048/34)
+          default: []
+          selector:
+            entity:
+              filter:
+                domain:
+                  - binary_sensor
+                  - schedule
+              multiple: true
+
+    lights_settings:
+      name: "Luzes *"
+      icon: mdi:lightbulb-outline
+      collapsed: true
+      input:
+        light_switch:
+          name: Luzes - Interruptores - Cenas - Scripts *
+          description: >
+            As luzes, interruptores, cenas e scripts que serão ativados pelo(s) sensor(es) acionador(es).
+            Se adicionar uma cena ou um script, consulte a secção 'Cenas e Scripts - Auxiliar de Alternância' e a secção 'Cenas - Scripts para Desligar' abaixo.
+            Para mais informações sobre como utilizar cenas e scripts [Clique aqui](https://community.home-assistant.io/t/481048/1595)
+
+            **NOTA** - Só pode utilizar entidades. Áreas, dispositivos e etiquetas não são suportados.
+          default: []
+          selector:
+            target:
+              entity:
+                domain:
+                  - light
+                  - switch
+                  - scene
+                  - script
+        boolean_scenes_scripts:
+          name: Cenas e Scripts - Auxiliar de Alternância
+          description: >
+            Para garantir o bom funcionamento da automação, recomenda-se criar um auxiliar de alternância independente ao selecionar uma cena ou um script em "Luzes - Interruptores - Cenas - Scripts" acima e introduzi-lo aqui.
+          default: []
+          selector:
+            entity:
+              filter:
+                domain:
+                  - input_boolean
+        end_scenes:
+          name: Cenas - Scripts para Desligar
+          description: >
+            Se selecionou uma cena ou um script para ser LIGADO acima em "Luzes - Interruptores - Cenas - Scripts" ou abaixo em "Luzes Noturnas", e pretende que seja DESLIGADO após o atraso de tempo, tem de criar uma cena ou um script com tudo DESLIGADO e introduzi-lo aqui.
+          default: []
+          selector:
+            entity:
+              multiple: true
+              filter:
+                domain:
+                  - scene
+                  - script
+        time_delay:
+          name: Atraso de Tempo
+          description: >
+            O atraso de tempo determina durante quanto tempo as luzes, interruptores, cenas e scripts permanecem ativos depois de todos os acionadores ficarem inativos, iniciando o atraso para os DESLIGAR.
+          default: 5
+          selector:
+            number:
+              min: 0
+              max: 30
+              step: 0.5
+              unit_of_measurement: minutos
+
+    normal_lights_settings:
+      name: "Controlo das Luzes"
+      icon: mdi:lightbulb-on-outline
+      collapsed: true
+      input:
+        include_light_control:
+          name: Opções de Controlo das Luzes (Opcional)
+          description: >
+            Selecione se pretende utilizar luminosidade ou transição. Estas definições só afetam uma entidade 'light' que suporte cada uma das opções selecionadas.
+            As definições de luminosidade e de transição encontram-se abaixo.
+          default: []
+          selector:
+            select:
+              multiple: true
+              options:
+                - label: Utilizar Luminosidade
+                  value: "use_brightness"
+                - label: Utilizar Transição
+                  value: "use_transition"
+        light_brightness:
+          name: Luminosidade
+          description: >
+            A definição de luminosidade das luzes quando são LIGADAS.
+          default: 100
+          selector:
+            number:
+              min: 1
+              max: 100
+              mode: slider
+              step: 1
+              unit_of_measurement: '%'
+        light_transition_on:
+          name: Transição - LIGAR
+          description: >
+            A definição de transição das luzes quando são LIGADAS.
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 5
+              mode: slider
+              step: 0.5
+              unit_of_measurement: segundos
+        light_transition_off:
+          name: Transição - DESLIGAR
+          description: >
+            A definição de transição das luzes quando são DESLIGADAS.
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 30
+              mode: slider
+              step: 1
+              unit_of_measurement: segundos
+        include_light_colour_control:
+          name: Opções de Controlo de Cor das Luzes (Opcional)
+          description: >
+            Selecione se pretende utilizar temperatura de cor, cor RGB, RGBW ou RGBWW. Estas definições só afetam uma entidade 'light' que suporte cada uma das opções selecionadas.
+            As definições de temperatura de cor e de cor RGB, RGBW e RGBWW encontram-se abaixo.
+          default: disable_colour_control
+          selector:
+            select:
+              options:
+                - label: Utilizar Temperatura de Cor
+                  value: "use_colour_temperature"
+                - label: Utilizar Cor RGB
+                  value: "use_rgb_colour"
+                - label: Utilizar Cor RGBW
+                  value: "use_rgbw_colour"
+                - label: Utilizar Cor RGBWW
+                  value: "use_rgbww_colour"
+                - label: Desativar o Controlo de Cor
+                  value: "disable_colour_control"
+        light_colour_temperature:
+          name: Temperatura de Cor
+          description: >
+            A definição de temperatura de cor das luzes quando são LIGADAS.
+          default: 5000
+          selector:
+            number:
+              min: 2000
+              max: 8000
+              mode: slider
+              step: 100
+              unit_of_measurement: 'kelvin'
+        light_rgb_colour:
+          name: Cor RGB
+          description: >
+            A definição de cor RGB das luzes quando são LIGADAS.
+          default: [255, 255, 255]
+          selector:
+            color_rgb:
+        light_rgbw_colour:
+          name: Cor RGBW
+          description: >
+            A definição de cor RGBW das luzes quando são LIGADAS. Introduza quatro números inteiros entre 0 e 255 para definir os valores de Vermelho, Verde, Azul e Branco.
+          default: [255, 255, 255, 255]
+          selector:
+            object:
+        light_rgbww_colour:
+          name: Cor RGBWW
+          description: >
+            A definição de cor RGBWW das luzes quando são LIGADAS. Introduza cinco números inteiros entre 0 e 255 para definir os valores de Vermelho, Verde, Azul, Branco Frio e Branco Quente.
+          default: [255, 255, 255, 255, 255]
+          selector:
+            object:
+        include_dim_before_off:
+          name: Utilizar a Opção Reduzir Luminosidade Antes de Desligar (Opcional)
+          description: >
+            Esta opção reduz a luminosidade das luzes como aviso visual antes de serem DESLIGADAS. Dá-lhe tempo para acionar o sensor de movimento caso queira que as luzes permaneçam LIGADAS.
+          default: dim_before_off_disabled
+          selector:
+            select:
+              options:
+                - label: Ativar a opção Reduzir Luminosidade Antes de Desligar
+                  value: "dim_before_off_enabled"
+                - label: Desativar a opção Reduzir Luminosidade Antes de Desligar
+                  value: "dim_before_off_disabled"
+        dim_before_off_pct:
+          name: Reduzir Luminosidade Antes de Desligar - Percentagem
+          description: >
+            Defina quanto reduzir a luminosidade das luzes durante o aviso de redução. Por exemplo, 50 significa que a luminosidade será reduzida em 50%.
+          default: 50
+          selector:
+            number:
+              min: 1
+              max: 100
+              mode: slider
+              step: 1
+              unit_of_measurement: '%'
+        dim_before_off_time_delay:
+          name: Reduzir Luminosidade Antes de Desligar - Atraso de Tempo
+          description: >
+            Defina durante quanto tempo manter as luzes no nível de luminosidade reduzido antes de as DESLIGAR.
+          default: 30
+          selector:
+            number:
+              min: 0
+              max: 60
+              mode: slider
+              step: 1
+              unit_of_measurement: segundos
+        dim_before_off_boolean:
+          name: Reduzir Luminosidade Antes de Desligar - Auxiliar de Alternância
+          description: >
+            Este auxiliar de alternância regista se as luzes foram reduzidas. Selecione um auxiliar de alternância para registar o estado de luminosidade reduzida das luzes.
+            Quando está LIGADO, a automação sabe que as luzes se encontram atualmente no estado reduzido e restaura a luminosidade anterior se a automação for acionada novamente antes de as luzes se DESLIGAREM.
+
+            Este auxiliar tem de ser utilizado exclusivamente por este campo da automação e não pode ser utilizado no **auxiliar de alternância de Luzes Noturnas - Reduzir Luminosidade Antes de Desligar**.
+          default: []
+          selector:
+            entity:
+              filter:
+                domain:
+                  - input_boolean
+
+    dynamic_lighting_settings:
+      name: "Iluminação Dinâmica"
+      icon: mdi:creation-outline
+      collapsed: true
+      input:
+        include_dynamic_lighting:
+          name: Utilizar as Opções de Iluminação Dinâmica (Opcional)
+          description: >
+            Esta opção faz ajustes contínuos à sua configuração de iluminação normal, modulando a luminosidade com base em valores de lux variáveis, ou adaptando tanto a temperatura de cor como a luminosidade de acordo com a elevação do sol ou a hora do dia.
+            Escolha entre as dezasseis predefinições disponíveis no menu pendente.
+
+            1 - Luminosidade Controlada por Lux
+
+            2 - Luminosidade Controlada por Lux Invertida
+
+            3 - Iluminação por Elevação do Sol - Temperatura de Cor
+
+            4 - Iluminação por Elevação do Sol - Luminosidade
+
+            5 - Iluminação por Elevação do Sol - Luminosidade Invertida
+
+            6 - Iluminação por Elevação do Sol - Temperatura de Cor + Luminosidade
+
+            7 - Iluminação por Elevação do Sol - Temperatura de Cor + Luminosidade Invertida
+
+            8 - Iluminação por Elevação do Sol - Temperatura de Cor + Luminosidade Controlada por Lux
+
+            9 - Iluminação por Elevação do Sol - Temperatura de Cor + Luminosidade Controlada por Lux Invertida
+
+            10 - Controlo por Hora - Temperatura de Cor
+
+            11 - Controlo por Hora - Luminosidade
+
+            12 - Controlo por Hora - Luminosidade Invertida
+
+            13 - Controlo por Hora - Temperatura de Cor + Luminosidade
+
+            14 - Controlo por Hora - Temperatura de Cor + Luminosidade Invertida
+
+            15 - Controlo por Hora - Temperatura de Cor + Luminosidade Controlada por Lux
+
+            16 - Controlo por Hora - Temperatura de Cor + Luminosidade Controlada por Lux Invertida
+
+            Foi implementado um sistema de numeração para facilitar a navegação pelas seleções do menu pendente. Cada número corresponde a uma configuração específica, ajudando os utilizadores a identificar e a ajustar as definições utilizadas em cada seleção.
+            Por exemplo, ao selecionar `3 - Iluminação por Elevação do Sol - Temperatura de Cor` como opção do menu pendente, as definições marcadas como "Utilizado nas opções 3, 4, 5, 6, 7, 8 ou 9" são obrigatórias para essa seleção, porque o número 3 está incluído nessas opções.
+
+            Para mais informações sobre as definições de iluminação dinâmica [Clique aqui](https://community.home-assistant.io/t/481048/837)
+          default: disable_dynamic_lighting
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - label: Desativar a Iluminação Dinâmica
+                  value: "disable_dynamic_lighting"
+                - label: 1 - Luminosidade Controlada por Lux
+                  value: "enable_lux_controled_brightness"
+                - label: 2 - Luminosidade Controlada por Lux Invertida
+                  value: "enable_lux_controled_brightness_inv"
+                - label: 3 - Iluminação por Elevação do Sol - Temperatura de Cor
+                  value: "enable_sun_elevation_colour"
+                - label: 4 - Iluminação por Elevação do Sol - Luminosidade
+                  value: "enable_sun_elevation_brightness"
+                - label: 5 - Iluminação por Elevação do Sol - Luminosidade Invertida
+                  value: "enable_sun_elevation_brightness_inv"
+                - label: 6 - Iluminação por Elevação do Sol - Temperatura de Cor + Luminosidade
+                  value: "enable_sun_elevation_colour_brightness"
+                - label: 7 - Iluminação por Elevação do Sol - Temperatura de Cor + Luminosidade Invertida
+                  value: "enable_sun_elevation_colour_brightness_inv"
+                - label: 8 - Iluminação por Elevação do Sol - Temperatura de Cor + Luminosidade Controlada por Lux
+                  value: "enable_sun_elevation_colour_lux_brightness"
+                - label: 9 - Iluminação por Elevação do Sol - Temperatura de Cor + Luminosidade Controlada por Lux Invertida
+                  value: "enable_sun_elevation_colour_lux_brightness_inv"
+                - label: 10 - Controlo por Hora - Temperatura de Cor
+                  value: "enable_time_controled_colour"
+                - label: 11 - Controlo por Hora - Luminosidade
+                  value: "enable_time_controled_brightness"
+                - label: 12 - Controlo por Hora - Luminosidade Invertida
+                  value: "enable_time_controled_brightness_inv"
+                - label: 13 - Controlo por Hora - Temperatura de Cor + Luminosidade
+                  value: "enable_time_controled_colour_brightness"
+                - label: 14 - Controlo por Hora - Temperatura de Cor + Luminosidade Invertida
+                  value: "enable_time_controled_colour_brightness_inv"
+                - label: 15 - Controlo por Hora - Temperatura de Cor + Luminosidade Controlada por Lux
+                  value: "enable_time_controled_colour_lux_brightness"
+                - label: 16 - Controlo por Hora - Temperatura de Cor + Luminosidade Controlada por Lux Invertida
+                  value: "enable_time_controled_colour_lux_brightness_inv"
+        dynamic_lighting_lux_sensor:
+          name: Iluminação Dinâmica - Sensor de Luz Ambiente
+          description: >
+            **Utilizado nas opções 1, 2, 8, 9, 15 ou 16** - Introduza o sensor de luz ambiente específico a utilizar, consoante a opção de Iluminação Dinâmica selecionada.
+          default: []
+          selector:
+            entity:
+              filter:
+                domain: sensor
+                device_class: illuminance
+        dynamic_lighting_max_lux:
+          name: Iluminação Dinâmica - Valor Máximo de Lux
+          description: >
+            **Utilizado nas opções 1, 2, 8, 9, 15 ou 16** - Especifique o valor máximo de lux. Quando o nível de lux atingir ou ultrapassar este valor, as luzes ajustam-se para a luminosidade máxima ou mínima, consoante a opção escolhida.
+            Este valor indica quando prefere que as suas luzes comecem a ligar ou a desligar.
+          default: 400
+          selector:
+            number:
+              min: 10
+              max: 900
+              step: 10
+              unit_of_measurement: lux
+        dynamic_lighting_min_lux:
+          name: Iluminação Dinâmica - Valor Mínimo de Lux
+          description: >
+            **Utilizado nas opções 1, 2, 8, 9, 15 ou 16** - Especifique o valor mínimo de lux. Quando o nível de lux atingir ou ultrapassar este valor, as luzes ajustam-se para a luminosidade máxima ou mínima, consoante a opção escolhida.
+            Este valor indica quando prefere que as suas luzes comecem a ligar ou a desligar.
+          default: 40
+          selector:
+            number:
+              min: 0
+              max: 600
+              step: 10
+              unit_of_measurement: lux
+        dynamic_lighting_max_brightness:
+          name: Iluminação Dinâmica - Valor Máximo de Luminosidade
+          description: >
+            **Utilizado nas opções 1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15 ou 16** - Defina o valor máximo de luminosidade, que determina o nível de luminosidade máximo das suas luzes.
+          default: 100
+          selector:
+            number:
+              min: 10
+              max: 100
+              step: 1
+              unit_of_measurement: '%'
+        dynamic_lighting_min_brightness:
+          name: Iluminação Dinâmica - Valor Mínimo de Luminosidade
+          description: >
+            **Utilizado nas opções 1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15 ou 16** - Especifique o valor mínimo de luminosidade, que estabelece o nível de luminosidade mais baixo das suas luzes.
+            Ao definir a luminosidade para 0%, a luz é DESLIGADA.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: '%'
+        dynamic_lighting_boolean:
+          name: Iluminação Dinâmica - Auxiliar de Alternância (Opcional)
+          description: >
+            **Utilizado nas opções 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15 ou 16** - Se escolheu um nível de luminosidade de 0%, é essencial criar um auxiliar de alternância independente e introduzi-lo aqui.
+            Este auxiliar de alternância também pode resolver problemas caso a automação não se comporte como esperado devido à indisponibilidade ocasional das entidades de luz.
+            Embora nem sempre seja necessário, se estiver disposto a criar auxiliares de alternância, recomenda-se vivamente a utilização desta opção para garantir o funcionamento correto da automação.
+          default: []
+          selector:
+            entity:
+              filter:
+                domain:
+                  - input_boolean
+        dynamic_lighting_max_colour_temp:
+          name: Iluminação Dinâmica - Temperatura de Cor Máxima
+          description: >
+            **Utilizado nas opções 3, 6, 7, 8, 9, 10, 13, 14, 15 ou 16** - Especifique o valor mais alto de temperatura de cor, que determina a definição de cor mais fria das suas luzes.
+          default: 5000
+          selector:
+            number:
+              min: 2500
+              max: 8000
+              mode: slider
+              step: 100
+              unit_of_measurement: 'kelvin'
+        dynamic_lighting_min_colour_temp:
+          name: Iluminação Dinâmica - Temperatura de Cor Mínima
+          description: >
+            **Utilizado nas opções 3, 6, 7, 8, 9, 10, 13, 14, 15 ou 16** - Defina o valor mais baixo de temperatura de cor, que determina a definição de cor mais quente das suas luzes.
+          default: 3000
+          selector:
+            number:
+              min: 2000
+              max: 7500
+              mode: slider
+              step: 100
+              unit_of_measurement: 'kelvin'
+        dynamic_lighting_sun_elevation_start_rising:
+          name: Iluminação Dinâmica - Elevação do Sol Ascendente - Ponto de Início
+          description: >
+            **Utilizado nas opções 3, 4, 5, 6, 7, 8 ou 9** - Quando o sol sobe acima do ponto de início do sensor, tanto a temperatura de cor como a percentagem de luminosidade transitam linearmente dos valores mínimos para os máximos até atingirem o ponto final ascendente, consoante a opção de Iluminação Dinâmica selecionada.
+          default: -1.5
+          selector:
+            number:
+              min: -10
+              max: 30
+              step: 0.5
+              unit_of_measurement: graus
+        dynamic_lighting_sun_elevation_end_rising:
+          name: Iluminação Dinâmica - Elevação do Sol Ascendente - Ponto Final
+          description: >
+            **Utilizado nas opções 3, 4, 5, 6, 7, 8 ou 9** - Quando o sol sobe acima do ponto final do sensor, são estabelecidos a temperatura de cor máxima e o valor de luminosidade máximo, consoante a opção de Iluminação Dinâmica selecionada.
+          default: 15
+          selector:
+            number:
+              min: 0
+              max: 90
+              step: 0.5
+              unit_of_measurement: graus
+        dynamic_lighting_sun_elevation_start_falling:
+          name: Iluminação Dinâmica - Elevação do Sol Descendente - Ponto de Início
+          description: >
+            **Utilizado nas opções 3, 4, 5, 6, 7, 8 ou 9** - Quando o sol desce abaixo do ponto de início do sensor, tanto a temperatura de cor como a percentagem de luminosidade transitam linearmente dos valores máximos para os mínimos até atingirem o ponto final descendente, consoante a opção de Iluminação Dinâmica selecionada.
+          default: 15
+          selector:
+            number:
+              min: 0
+              max: 90
+              step: 0.5
+              unit_of_measurement: graus
+        dynamic_lighting_sun_elevation_end_falling:
+          name: Iluminação Dinâmica - Elevação do Sol Descendente - Ponto Final
+          description: >
+            **Utilizado nas opções 3, 4, 5, 6, 7, 8 ou 9** - Quando o sol desce abaixo do ponto final do sensor, são estabelecidos a temperatura de cor mínima e o valor de luminosidade mínimo, consoante a opção de Iluminação Dinâmica selecionada.
+          default: -4.0
+          selector:
+            number:
+              min: -10
+              max: 30
+              step: 0.5
+              unit_of_measurement: graus
+        dynamic_lighting_time_start_morning:
+          name: Iluminação Dinâmica - Hora da Manhã - Ponto de Início
+          description: >
+            **Utilizado nas opções 10, 11, 12, 13, 14, 15 ou 16** - Quando a hora ultrapassa o ponto de início, tanto a temperatura de cor como a percentagem de luminosidade transitam linearmente dos valores mínimos para os máximos até atingirem o ponto final ascendente, consoante a opção de Iluminação Dinâmica selecionada.
+          default: "06:00:00"
+          selector:
+            time:
+        dynamic_lighting_time_end_morning:
+          name: Iluminação Dinâmica - Hora da Manhã - Ponto Final
+          description: >
+            **Utilizado nas opções 10, 11, 12, 13, 14, 15 ou 16** - Quando a hora ultrapassa o ponto final, são estabelecidos a temperatura de cor máxima e o valor de luminosidade máximo, consoante a opção de Iluminação Dinâmica selecionada.
+          default: "09:00:00"
+          selector:
+            time:
+        dynamic_lighting_time_start_evening:
+          name: Iluminação Dinâmica - Hora do Fim do Dia - Ponto de Início
+          description: >
+            **Utilizado nas opções 10, 11, 12, 13, 14, 15 ou 16** - Quando a hora ultrapassa o ponto de início, tanto a temperatura de cor como a percentagem de luminosidade transitam linearmente dos valores máximos para os mínimos até atingirem o ponto final descendente, consoante a opção de Iluminação Dinâmica selecionada.
+          default: "17:00:00"
+          selector:
+            time:
+        dynamic_lighting_time_end_evening:
+          name: Iluminação Dinâmica - Hora do Fim do Dia - Ponto Final
+          description: >
+            **Utilizado nas opções 10, 11, 12, 13, 14, 15 ou 16** - Quando a hora ultrapassa o ponto final, são estabelecidos a temperatura de cor mínima e o valor de luminosidade mínimo, consoante a opção de Iluminação Dinâmica selecionada.
+          default: "19:00:00"
+          selector:
+            time:
+        dynamic_lighting_heartbeat:
+          name: Iluminação Dinâmica - Intervalo de Atualização (Heartbeat)
+          description: >
+            **Utilizado nas opções 1, 2, 8, 9, 10, 11, 12, 13, 14, 15 ou 16** - Defina o intervalo de atualização (heartbeat) para definir a velocidade de funcionamento.
+            Em cada heartbeat, podem ser avaliados o valor de lux, a luminosidade da luz, a temperatura de cor, a temperatura de cor alvo e a luminosidade alvo, ajustando a temperatura de cor ou a luminosidade consoante a opção de Iluminação Dinâmica selecionada.
+
+            **Nota** - Ao utilizar uma opção de **Controlo por Hora** (10, 11, 12, 13, 14, 15 ou 16), o heartbeat mínimo não deve ser inferior a 1 minuto, com ajustes em incrementos de 1 minuto (por exemplo, 1, 2, 3, 4, 5, etc.), pois um valor inferior não traz qualquer benefício e pode abrandar o desempenho do seu sistema.
+            Dependendo da duração entre os pontos de início e de fim da transição da luz, o ajuste deste valor determina o tamanho do passo.
+            Um heartbeat mais longo melhora geralmente o desempenho, mas pode resultar em passos maiores que podem incomodar a vista. Dedique algum tempo a determinar o valor correto de heartbeat para as suas necessidades.
+            O heartbeat só está ativo entre os pontos de início e de fim.
+          default: 1
+          selector:
+            number:
+              min: 0.25
+              max: 10
+              step: 0.25
+              unit_of_measurement: minutos
+        dynamic_lighting_step_value:
+          name: Iluminação Dinâmica - Valor do Passo
+          description: >
+            **Utilizado nas opções 1, 2, 8, 9, 15 ou 16** - Em cada heartbeat, o sistema avalia o valor de lux, a luminosidade da luz e a luminosidade alvo.
+            Se a luminosidade alvo exceder o valor do passo predefinido, o sistema aplica o valor do passo definido para moderar gradualmente a taxa de variação, garantindo uma transição mais suave na luminosidade da luz.
+          default: 4
+          selector:
+            number:
+              min: 1
+              max: 100
+              step: 1
+              unit_of_measurement: '%'
+        dynamic_lighting_dead_zone:
+          name: Iluminação Dinâmica - Zona Morta (±)
+          description: >
+            **Utilizado nas opções 1, 2, 8, 9, 15 ou 16** - Em cada heartbeat, o sistema avalia a luminosidade atual da luz e a luminosidade alvo.
+            Se a luminosidade alvo se situar dentro da zona morta definida, o sistema mantém a luminosidade atual da luz. Isto evita pequenas flutuações na intensidade da luz que podem incomodar a vista.
+          default: 7
+          selector:
+            number:
+              min: 0
+              max: 15
+              step: 1
+              unit_of_measurement: '%'
+        dynamic_lighting_state_control:
+          name: Iluminação Dinâmica - Opção de Controlo de Estado (Opcional)
+          description: >
+            Ative ou desative a iluminação dinâmica com base no estado de uma entidade especificada.
+            Quando a entidade se encontra no estado de ativação selecionado abaixo, a iluminação dinâmica funciona conforme configurado. Quando a entidade não se encontra no estado de ativação abaixo, a iluminação dinâmica fica desativada.
+            Isto permite alternar entre a iluminação normal e a iluminação dinâmica com base no estado da entidade.
+          default: disable_state_control
+          selector:
+            select:
+              options:
+                - label: Ativar a Opção de Controlo de Estado
+                  value: "enable_state_control"
+                - label: Desativar a Opção de Controlo de Estado
+                  value: "disable_state_control"
+        dynamic_lighting_state_control_activation_state:
+          name: Iluminação Dinâmica - Estado de Ativação do Controlo de Estado
+          description: >
+            Selecione o estado em que a entidade tem de estar para ativar a iluminação dinâmica. Quando a entidade se encontra no estado selecionado (LIGADO ou DESLIGADO), a iluminação dinâmica fica ativada.
+            Esta opção define a condição de ativação.
+          default: "on"
+          selector:
+            select:
+              options:
+                - label: Estado LIGADO
+                  value: "on"
+                - label: Estado DESLIGADO
+                  value: "off"
+        dynamic_lighting_state_control_entity:
+          name: Iluminação Dinâmica - Entidade de Controlo de Estado
+          description: >
+            Se a opção de controlo de estado acima estiver ativada, selecione a entidade que irá alternar a iluminação dinâmica com base no seu estado de ativação definido acima.
+          default: []
+          selector:
+            entity:
+
+    bypass_settings:
+      name: "Bypass"
+      icon: mdi:cog-pause-outline
+      collapsed: true
+      input:
+        include_bypass:
+          name: Utilizar as Opções de Bypass (Opcional)
+          description: >
+            Selecione se pretende ativar uma opção. Cada opção determina como as suas luzes se comportam quando o interruptor de bypass está LIGADO:
+
+            1 - Liga as luzes
+
+            2 - Desliga as luzes
+
+            3 - Mantém as luzes no estado atual
+
+            Se ativar uma opção, certifique-se de que introduz o interruptor de bypass correspondente no campo abaixo.
+            Para mais informações sobre como utilizar o bypass [Clique aqui](https://community.home-assistant.io/t/481048/895)
+          default: []
+          selector:
+            select:
+              options:
+                - label: 1 - Ativar o Bypass - Ligar as Luzes
+                  value: "bypass_enabled_turn_on"
+                - label: 2 - Ativar o Bypass - Desligar as Luzes
+                  value: "bypass_enabled_turn_off"
+                - label: 3 - Ativar o Bypass - Manter as Luzes no Estado Atual
+                  value: "bypass_enabled_stop"
+              multiple: true
+        motion_bypass_lights_on:
+          name: Interruptor de Bypass - Ligar as Luzes
+          description: >
+            Selecione os interruptores que irão LIGAR as suas luzes, contornar o sensor acionador e permitir que as suas luzes funcionem normalmente.
+            Tenha em atenção que a entidade não pode estar incluída nas seleções 'Luzes - Interruptores - Cenas - Scripts' ou 'Luzes Noturnas'.
+          default: []
+          selector:
+            entity:
+              multiple: true
+        motion_bypass_lights_off:
+          name: Interruptor de Bypass - Desligar as Luzes
+          description: >
+            Selecione os interruptores que irão DESLIGAR as suas luzes, contornar o sensor acionador e permitir que as suas luzes funcionem normalmente.
+            Tenha em atenção que a entidade não pode estar incluída nas seleções 'Luzes - Interruptores - Cenas - Scripts' ou 'Luzes Noturnas'.
+          default: []
+          selector:
+            entity:
+              multiple: true
+        motion_bypass_lights_stop:
+          name: Interruptor de Bypass - Manter as Luzes no Estado Atual
+          description: >
+            Selecione os interruptores que irão manter as suas luzes no estado atual, contornar o sensor acionador e permitir que as suas luzes funcionem normalmente.
+            Tenha em atenção que a entidade não pode estar incluída nas seleções 'Luzes - Interruptores - Cenas - Scripts' ou 'Luzes Noturnas'.
+          default: []
+          selector:
+            entity:
+              multiple: true
+        bypass_time_delay:
+          name: Bypass - Atraso de Tempo
+          description: >
+            Só é utilizado em dois cenários de bypass específicos, quando as suas luzes estão LIGADAS.
+
+            1. Quando a opção 2 acima, "Ativar o Bypass - Desligar as Luzes", está selecionada e o bypass é LIGADO.
+
+            2. Quando todos os bypasses estão DESLIGADOS, o sensor acionador está DESLIGADO e as luzes permanecem LIGADAS.
+
+            Em ambos os casos, a automação irá DESLIGAR as luzes após o atraso de tempo configurado.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 10
+              step: 0.25
+              unit_of_measurement: minutos
+        include_bypass_auto_off:
+          name: Utilizar a Opção de Desligar Automaticamente o Bypass (Opcional)
+          description: >
+            Ative esta opção se pretende que o bypass se DESLIGUE automaticamente após um atraso de tempo definido.
+            Pode escolher a que opção de bypass se aplica o desligar automático:
+
+            1 - Liga as luzes
+
+            2 - Desliga as luzes
+
+            3 - Mantém as luzes no estado atual
+
+            Cada opção corresponde a uma das opções de bypass acima.
+          default: []
+          selector:
+            select:
+              options:
+                - label: A - Ativar Desligar Automático para a Opção de Bypass 1 - Ligar as Luzes
+                  value: "bypass_auto_off_enabled_on"
+                - label: B - Ativar Desligar Automático para a Opção de Bypass 2 - Desligar as Luzes
+                  value: "bypass_auto_off_enabled_off"
+                - label: C - Ativar Desligar Automático para a Opção de Bypass 3 - Manter as Luzes no Estado Atual
+                  value: "bypass_auto_off_enabled_stop"
+              multiple: true
+        bypass_auto_off_delay:
+          name: Desligar Automático do Bypass - Atraso de Tempo
+          description: >
+            Defina o atraso de tempo para o desligar automático do bypass. O atraso de tempo começa a contar a partir do último bypass que foi LIGADO.
+            Se vários bypasses estiverem LIGADOS, desligar um enquanto outro permanece LIGADO também reinicia o atraso de tempo.
+          default: 60
+          selector:
+            number:
+              min: 1
+              max: 240
+              step: 1
+              unit_of_measurement: minutos
+
+    sun_settings:
+      name: "Elevação do Sol"
+      icon: mdi:weather-sunny
+      collapsed: true
+      input:
+        include_sun:
+          name: Utilizar a Opção do Sol (Opcional)
+          description: >
+            Esta opção adiciona uma condição que só permite que a automação seja executada quando está escuro ou abaixo das definições de 'Elevação do Sol'.
+            É uma condição global que pode funcionar em conjunto com outras opções.
+            Ativar esta opção não é necessário para que a condição de elevação do sol das luzes noturnas funcione.
+            Para mais informações sobre as definições do sol [Clique aqui](https://community.home-assistant.io/t/481048/37)
+          default: sun_disabled
+          selector:
+            select:
+              options:
+                - label: Ativar a opção do sol
+                  value: "sun_enabled"
+                - label: Desativar a opção do sol
+                  value: "sun_disabled"
+        sun_elevation:
+          name: Elevação do Sol Descendente
+          description: >
+            A elevação do sol descendente refere-se ao ângulo entre o sol e o horizonte quando o sol se está a pôr. Um valor negativo indica que o sol está ABAIXO do horizonte.
+            Por exemplo, um valor de referência de -1.5 corresponde ao crepúsculo (anoitecer).
+          default: -1.5
+          selector:
+            number:
+              min: -10
+              max: 5
+              step: 0.5
+              unit_of_measurement: graus
+        sun_elevation_rising:
+          name: Elevação do Sol Ascendente
+          description: >
+            A elevação do sol ascendente refere-se ao ângulo entre o sol e o horizonte durante o nascer do sol. Um valor negativo indica que o sol está ABAIXO do horizonte.
+            Por exemplo, um valor de referência de -4.0 corresponde à aurora (amanhecer).
+          default: -4.0
+          selector:
+            number:
+              min: -10
+              max: 5
+              step: 0.5
+              unit_of_measurement: graus
+
+    ambient_settings:
+      name: "Luz Ambiente"
+      icon: mdi:theme-light-dark
+      collapsed: true
+      input:
+        include_ambient:
+          name: Utilizar as Opções de Luz Ambiente (Opcional)
+          description: >
+            Esta opção adiciona uma condição que só permite que a automação seja executada quando está escuro ou abaixo das definições de 'Luz Ambiente'.
+            É uma condição global que pode funcionar em conjunto com outras opções.
+            Para mais informações sobre as definições de luz ambiente [Clique aqui](https://community.home-assistant.io/t/481048/1608)
+          default: ambient_disabled
+          selector:
+            select:
+              options:
+                - label: Ativar as opções de luz ambiente
+                  value: "ambient_enabled"
+                - label: Desativar as opções de luz ambiente
+                  value: "ambient_disabled"
+        ambient_light_sensor:
+          name: Sensor de Luz Ambiente
+          description: >
+            Selecione o sensor de luz ambiente a utilizar.
+          default: []
+          selector:
+            entity:
+              filter:
+                domain: sensor
+                device_class: illuminance
+        ambient_light_options:
+          name: Sensor de Luz Ambiente - Condições do Local
+          description: >
+            Nalguns casos, quando as suas luzes se LIGAM, o seu sensor de luz ambiente é afetado, aumentando o seu valor de LUX. Isto pode fazer com que as luzes se DESLIGUEM prematuramente.
+            Selecione a opção que melhor se adequa à sua instalação.
+
+            **NOTA** - Se utilizar um desfasamento entre o valor de lux alto e baixo, selecione NÃO.
+          default: ambient_light_option_disabled
+          selector:
+            select:
+              options:
+                - label: SIM - O meu Sensor de Luz Ambiente é afetado pelas Luzes
+                  value: "ambient_light_option_enabled"
+                - label: NÃO - O meu Sensor de Luz Ambiente não é afetado pelas Luzes
+                  value: "ambient_light_option_disabled"
+        ambient_light_value:
+          name: Luz Ambiente - Valor de Lux Baixo
+          description: >
+            Defina o Valor de Lux Baixo da Luz Ambiente. A luz LIGA-SE quando o nível de lux está abaixo do valor definido.
+            Este valor tem de ser igual ou inferior ao "Valor de Lux Alto" abaixo. A referência é 20 lux (crepúsculo).
+          default: 20
+          selector:
+            number:
+              min: 0
+              max: 500
+              step: 10
+              unit_of_measurement: lux
+        ambient_light_low_value_delay:
+          name: Luz Ambiente - Atraso de Tempo do Lux Baixo
+          description: >
+            Defina durante quanto tempo o nível de luz ambiente tem de permanecer abaixo do **Valor de Lux Baixo** para que a condição seja cumprida.
+            Isto ajuda a evitar que as luzes se LIGUEM devido a quedas breves de lux.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 5
+              step: 0.25
+              unit_of_measurement: minutos
+        ambient_light_high_value:
+          name: Luz Ambiente - Valor de Lux Alto
+          description: >
+            Defina o Valor de Lux Alto da Luz Ambiente. A luz DESLIGA-SE quando o nível de lux está acima do valor definido.
+            Este valor tem de ser igual ou superior ao "Valor de Lux Baixo" acima. Definir um valor superior ao valor baixo permite um desfasamento.
+            A referência é 80 lux (aurora).
+          default: 80
+          selector:
+            number:
+              min: 0
+              max: 1000
+              step: 10
+              unit_of_measurement: lux
+        ambient_light_high_value_delay:
+          name: Luz Ambiente - Atraso de Tempo do Lux Alto
+          description: >
+            Defina durante quanto tempo o nível de luz ambiente tem de permanecer acima do **Valor de Lux Alto** para que a condição ambiente seja cumprida.
+            Isto ajuda a evitar que as luzes se DESLIGUEM devido a picos breves de lux.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 5
+              step: 0.25
+              unit_of_measurement: minutos
+
+    time_settings:
+      name: "Hora"
+      icon: mdi:clock-outline
+      collapsed: true
+      input:
+        include_time:
+          name: Utilizar as Opções de Hora (Opcional)
+          description: >
+            Esta opção adiciona uma condição que só permite que a automação seja executada entre as definições de hora de início e hora de fim nos dias da semana selecionados.
+            Estas definições de hora são condições globais que podem funcionar em conjunto com outras opções.
+            Ativar esta opção não é necessário para que a condição de hora das luzes noturnas funcione.
+            Para mais informações sobre as definições de hora [Clique aqui](https://community.home-assistant.io/t/481048/310)
+          default: time_disabled
+          selector:
+            select:
+              options:
+                - label: Ativar as opções de hora
+                  value: "time_enabled"
+                - label: Desativar as opções de hora
+                  value: "time_disabled"
+        after_time:
+          name: Hora de Início
+          description: >
+            Defina a hora de início.
+          default: 00:00:00
+          selector:
+            time:
+        before_time:
+          name: Hora de Fim
+          description: >
+            Defina a hora de fim.
+          default: 00:00:00
+          selector:
+            time:
+        weekday_options:
+          name: Dias da Semana
+          description: >
+            Selecione os dias da semana em que pretende que a automação seja executada. Tem de selecionar "Ativar as opções de hora" acima para que as seleções dos dias da semana funcionem.
+          default:
+            - mon
+            - tue
+            - wed
+            - thu
+            - fri
+            - sat
+            - sun
+          selector:
+            select:
+              multiple: true
+              mode: list
+              options:
+                - label: Segunda-feira
+                  value: "mon"
+                - label: Terça-feira
+                  value: "tue"
+                - label: Quarta-feira
+                  value: "wed"
+                - label: Quinta-feira
+                  value: "thu"
+                - label: Sexta-feira
+                  value: "fri"
+                - label: Sábado
+                  value: "sat"
+                - label: Domingo
+                  value: "sun"
+
+    state_control_settings:
+      name: "Controlo de Estado"
+      icon: mdi:toggle-switch-outline
+      collapsed: true
+      input:
+        include_state_control:
+          name: Utilizar a Opção de Controlo de Estado (Opcional)
+          description: >
+            Esta opção adiciona uma condição que só permite que a automação seja executada quando a entidade se encontra no estado de ativação selecionado abaixo.
+          default: state_control_disabled
+          selector:
+            select:
+              options:
+                - label: Ativar a Opção de Controlo de Estado
+                  value: "state_control_enabled"
+                - label: Desativar a Opção de Controlo de Estado
+                  value: "state_control_disabled"
+        state_control_activation_state:
+          name: Estado de Ativação
+          description: >
+            Selecione o estado (LIGADO ou DESLIGADO) em que a entidade tem de estar para que a automação possa ser executada.
+          default: "off"
+          selector:
+            select:
+              options:
+                - label: Estado LIGADO
+                  value: "on"
+                - label: Estado DESLIGADO
+                  value: "off"
+        state_control_entity:
+          name: Entidade de Controlo
+          description: >
+            Se o Controlo de Estado estiver ativado, selecione a entidade que irá permitir que a automação seja executada com base no estado de ativação selecionado acima.
+          default: []
+          selector:
+            entity:
+
+    device_tracker_settings:
+      name: "Localizador de Dispositivos"
+      icon: mdi:account-multiple-check-outline
+      collapsed: true
+      input:
+        include_device_tracker:
+          name: Utilizar as Opções do Localizador de Dispositivos (Opcional)
+          description: >
+            O Home Assistant pode localizar os seus dispositivos (como telemóveis) dentro de uma zona designada através do localizador de dispositivos da aplicação móvel.
+            Para utilizar esta opção, tem de configurar uma zona e configurar os seus dispositivos para localização no Home Assistant.
+
+            Existem duas opções de ativação disponíveis: "Zona" localiza todos os dispositivos dentro da zona, enquanto "Zona + Pessoas" permite localizar indivíduos numa zona.
+
+            Esta funcionalidade pode ser particularmente útil se tiver animais de estimação a acionar o sensor, LIGANDO e DESLIGANDO as suas luzes quando não está ninguém em casa.
+          default: device_tracker_disabled
+          selector:
+            select:
+              options:
+                - label: Ativar a opção de zona
+                  value: "zone_enabled"
+                - label: Ativar as opções de zona + pessoas
+                  value: "zone_people_enabled"
+                - label: Desativar as opções do localizador de dispositivos
+                  value: "device_tracker_disabled"
+        zone:
+          name: Localizador de Dispositivos - Zona
+          description: >
+            Escolha a zona que irá localizar os seus dispositivos e/ou pessoas nela.
+          default: []
+          selector:
+            entity:
+              filter:
+                domain: zone
+        people:
+          name: Localizador de Dispositivos - Pessoas
+          description: >
+            Selecione as pessoas que pretende localizar na zona selecionada acima. Tem de introduzir uma zona acima para que esta opção funcione.
+          default: []
+          selector:
+            entity:
+              multiple: true
+              filter:
+                domain:
+                  - person
+
+    night_lights_trigger_settings:
+      name: "Definições das Luzes Noturnas"
+      icon: mdi:weather-night
+      collapsed: true
+      input:
+        include_night_lights:
+          name: Utilizar as Opções de Luzes Noturnas (Opcional)
+          description: >
+            Ativar as opções de luzes noturnas permite um controlo de iluminação separado e personalizável quando as condições das luzes noturnas são cumpridas.
+            As opções de condição das luzes noturnas incluem estado de uma entidade, hora ou elevação do sol. Escolha abaixo a opção de condição que pretende utilizar.
+
+            Esta funcionalidade é particularmente benéfica para criar um ambiente relaxante com iluminação mais suave durante a noite. A flexibilidade destas opções permite ajustes personalizados, melhorando o ambiente e o conforto noturnos, especialmente ao movimentar-se durante a noite.
+          default: night_lights_disabled
+          selector:
+            select:
+              options:
+                - label: Ativar as opções de luzes noturnas
+                  value: "night_lights_enabled"
+                - label: Desativar as opções de luzes noturnas
+                  value: "night_lights_disabled"
+        night_lights_conditions:
+          name: Condições das Luzes Noturnas (Obrigatório para as Luzes Noturnas)
+          description: >
+            Selecione qualquer condição de luzes noturnas das opções disponíveis e certifique-se de que **Utilizar as Opções de Luzes Noturnas** está ativado na secção acima.
+            Tem de escolher pelo menos uma 'Condição de Luzes Noturnas' para que as luzes noturnas funcionem, e as definições de cada condição encontram-se abaixo.
+            Se selecionar duas ou mais condições, todas as condições selecionadas têm de ser cumpridas para que as luzes noturnas sejam ativadas.
+          default: []
+          selector:
+            select:
+              multiple: true
+              options:
+                - label: Ativar a opção de estado de entidade
+                  value: "entity_state_enabled"
+                - label: Ativar a opção de hora
+                  value: "time_enabled"
+                - label: Ativar a opção de elevação do sol
+                  value: "sun_enabled"
+        night_lights_entity_state:
+          name: Luzes Noturnas - Estado da Entidade
+          description: >
+            Selecione uma entidade que irá acionar a ativação das luzes noturnas quando for LIGADA. Pode ser o seu telemóvel em 'Não Incomodar', um auxiliar, um sensor de cama, etc.
+            Tenha em atenção que a entidade selecionada não pode estar incluída nas seleções 'Luzes - Interruptores - Cenas - Scripts' ou 'Luzes Noturnas'.
+            Para mais informações sobre o estado de entidade [Clique aqui](https://community.home-assistant.io/t/481048/663)
+          default: []
+          selector:
+            entity:
+              multiple: true
+        night_lights_after_time:
+          name: Luzes Noturnas - Hora de Início
+          description: >
+            Defina a hora de início.
+          default: 00:00:00
+          selector:
+            time:
+        night_lights_before_time:
+          name: Luzes Noturnas - Hora de Fim
+          description: >
+            Defina a hora de fim.
+          default: 00:00:00
+          selector:
+            time:
+        night_lights_sun_elevation:
+          name: Luzes Noturnas - Elevação do Sol Descendente
+          description: >
+            A elevação do sol descendente refere-se ao ângulo entre o sol e o horizonte quando o sol se está a pôr. Um valor negativo indica que o sol está ABAIXO do horizonte.
+            Por exemplo, um valor de referência de -1.5 corresponde ao crepúsculo (anoitecer).
+          default: -1.5
+          selector:
+            number:
+              min: -10
+              max: 5
+              step: 0.5
+              unit_of_measurement: graus
+        night_lights_sun_elevation_rising:
+          name: Luzes Noturnas - Elevação do Sol Ascendente
+          description: >
+            A elevação do sol ascendente refere-se ao ângulo entre o sol e o horizonte durante o nascer do sol. Um valor negativo indica que o sol está ABAIXO do horizonte.
+            Por exemplo, um valor de referência de -4.0 corresponde à aurora (amanhecer).
+          default: -4.0
+          selector:
+            number:
+              min: -10
+              max: 5
+              step: 0.5
+              unit_of_measurement: graus
+
+    night_lights_settings:
+      name: "Luzes Noturnas"
+      icon: mdi:lightbulb-night-outline
+      collapsed: true
+      input:
+        night_lights:
+          name: Luzes Noturnas
+          description: >
+            As luzes, interruptores, cenas e scripts que serão ativados pelo(s) sensor(es) acionador(es).
+            Se adicionar uma cena ou um script, consulte a secção 'Luzes Noturnas - Cenas e Scripts - Auxiliar de Alternância' abaixo e o campo 'Cenas - Scripts para Desligar' na secção de luzes acima.
+            Para mais informações sobre como utilizar cenas e scripts [Clique aqui](https://community.home-assistant.io/t/481048/1595)
+
+            **NOTA** - Só pode utilizar entidades. Áreas, dispositivos e etiquetas não são suportados.
+          default: {}
+          selector:
+            target:
+              entity:
+                domain:
+                  - light
+                  - switch
+                  - scene
+                  - script
+        night_boolean_scenes_scripts:
+          name: Luzes Noturnas - Cenas e Scripts - Auxiliar de Alternância
+          description: >
+            Para garantir o bom funcionamento da automação, recomenda-se criar um auxiliar de alternância independente ao selecionar uma cena ou um script em "Luzes Noturnas" acima e introduzi-lo aqui.
+          default: []
+          selector:
+            entity:
+              filter:
+                domain:
+                  - input_boolean
+        night_time_delay:
+          name: Luzes Noturnas - Atraso de Tempo
+          description: >
+            O atraso de tempo determina durante quanto tempo as luzes noturnas permanecem ativas depois de todos os acionadores ficarem inativos, iniciando o atraso para as DESLIGAR.
+          default: 5
+          selector:
+            number:
+              min: 0
+              max: 30
+              step: 0.5
+              unit_of_measurement: minutos
+
+    night_lights_light_control_settings:
+      name: "Controlo das Luzes Noturnas"
+      icon: mdi:lightbulb-on-80
+      collapsed: true
+      input:
+        include_night_light_control:
+          name: Luzes Noturnas - Opções de Controlo das Luzes (Opcional)
+          description: >
+            Selecione se pretende utilizar luminosidade ou transição. Estas definições só afetam uma entidade 'light' que suporte cada uma das opções selecionadas.
+            As definições de luminosidade e de transição encontram-se abaixo.
+
+            Selecionar a opção 'Se as luzes estiverem LIGADAS, ajustar as luzes na passagem' garante que as definições de controlo das luzes são aplicadas às luzes que já estejam LIGADAS durante a transição das luzes normais para as luzes noturnas e vice-versa.
+
+            Selecionar 'Sim - Gerir o script de DESLIGAR na passagem' é benéfico para scripts que contêm ações if-then-else que ativam e desativam várias funções durante a transição das luzes normais para as luzes noturnas e vice-versa.
+          default: []
+          selector:
+            select:
+              multiple: true
+              options:
+                - label: Utilizar luminosidade
+                  value: "use_brightness"
+                - label: Utilizar transição
+                  value: "use_transition"
+                - label: Se as luzes estiverem LIGADAS, ajustar as luzes na passagem
+                  value: "if_lights_are_on_adjust_when_crossing_over"
+                - label: Sim - Gerir o script de DESLIGAR na passagem
+                  value: "manage_scripts_crossing_over"
+        night_light_brightness:
+          name: Luzes Noturnas - Luminosidade
+          description: >
+            A definição de luminosidade das luzes quando são LIGADAS.
+          default: 20
+          selector:
+            number:
+              min: 1
+              max: 100
+              mode: slider
+              step: 1
+              unit_of_measurement: '%'
+        night_light_transition_on:
+          name: Luzes Noturnas - Transição - LIGAR
+          description: >
+            A transição das luzes quando são LIGADAS.
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 5
+              mode: slider
+              step: 0.5
+              unit_of_measurement: segundos
+        night_light_transition_off:
+          name: Luzes Noturnas - Transição - DESLIGAR
+          description: >
+            A transição das luzes quando são DESLIGADAS.
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 30
+              mode: slider
+              step: 1
+              unit_of_measurement: segundos
+        include_night_light_colour_control:
+          name: Luzes Noturnas - Opções de Controlo de Cor das Luzes (Opcional)
+          description: >
+            Selecione se pretende utilizar temperatura de cor, cor RGB, RGBW ou RGBWW. Estas definições só afetam uma entidade 'light' que suporte cada uma das opções selecionadas.
+            As definições de temperatura de cor e de cor RGB, RGBW e RGBWW encontram-se abaixo
+          default: disable_colour_control
+          selector:
+            select:
+              options:
+                - label: Utilizar Temperatura de Cor
+                  value: "use_colour_temperature"
+                - label: Utilizar Cor RGB
+                  value: "use_rgb_colour"
+                - label: Utilizar Cor RGBW
+                  value: "use_rgbw_colour"
+                - label: Utilizar Cor RGBWW
+                  value: "use_rgbww_colour"
+                - label: Desativar o Controlo de Cor
+                  value: "disable_colour_control"
+        night_light_colour_temperature:
+          name: Luzes Noturnas - Temperatura de Cor
+          description: >
+            A definição de temperatura de cor das luzes quando são LIGADAS.
+          default: 5000
+          selector:
+            number:
+              min: 2000
+              max: 8000
+              mode: slider
+              step: 100
+              unit_of_measurement: 'kelvin'
+        night_light_rgb_colour:
+          name: Luzes Noturnas - Cor RGB
+          description: >
+            A definição de cor RGB das luzes quando são LIGADAS.
+          default: [255, 255, 255]
+          selector:
+            color_rgb:
+        night_light_rgbw_colour:
+          name: Luzes Noturnas - Cor RGBW
+          description: >
+            A definição de cor RGBW das luzes quando são LIGADAS. Introduza quatro números inteiros entre 0 e 255 para definir os valores de Vermelho, Verde, Azul e Branco.
+          default: [255, 255, 255, 255]
+          selector:
+            object:
+        night_light_rgbww_colour:
+          name: Luzes Noturnas - Cor RGBWW
+          description: >
+            A definição de cor RGBWW das luzes quando são LIGADAS. Introduza cinco números inteiros entre 0 e 255 para definir os valores de Vermelho, Verde, Azul, Branco Frio e Branco Quente.
+          default: [255, 255, 255, 255, 255]
+          selector:
+            object:
+        night_light_include_dim_before_off:
+          name: Utilizar a Opção Reduzir Luminosidade Antes de Desligar (Opcional)
+          description: >
+            Esta opção reduz a luminosidade das luzes noturnas como aviso visual antes de serem DESLIGADAS. Dá-lhe tempo para acionar o sensor de movimento caso queira que as luzes noturnas permaneçam LIGADAS.
+
+            ***Nota** - Esta opção não funciona quando o **Brilho Noturno** está ativado, mesmo que esteja ativada aqui.*
+          default: dim_before_off_disabled
+          selector:
+            select:
+              options:
+                - label: Ativar a opção Reduzir Luminosidade Antes de Desligar
+                  value: "dim_before_off_enabled"
+                - label: Desativar a opção Reduzir Luminosidade Antes de Desligar
+                  value: "dim_before_off_disabled"
+        night_light_dim_before_off_pct:
+          name: Reduzir Luminosidade Antes de Desligar - Percentagem
+          description: >
+            Defina quanto reduzir a luminosidade das suas luzes noturnas durante o aviso de redução. Por exemplo, 50 significa que a luminosidade será reduzida em 50%.
+          default: 50
+          selector:
+            number:
+              min: 1
+              max: 100
+              mode: slider
+              step: 1
+              unit_of_measurement: '%'
+        night_light_dim_before_off_time_delay:
+          name: Reduzir Luminosidade Antes de Desligar - Atraso de Tempo
+          description: >
+            Defina durante quanto tempo manter as luzes noturnas no nível de luminosidade reduzido antes de as DESLIGAR.
+          default: 30
+          selector:
+            number:
+              min: 0
+              max: 60
+              mode: slider
+              step: 1
+              unit_of_measurement: segundos
+        night_light_dim_before_off_boolean:
+          name: Reduzir Luminosidade Antes de Desligar - Auxiliar de Alternância
+          description: >
+            Este auxiliar de alternância regista se as luzes noturnas foram reduzidas. Selecione um auxiliar de alternância para registar o estado de luminosidade reduzida das luzes noturnas.
+            Quando está LIGADO, a automação sabe que as luzes noturnas se encontram atualmente no estado reduzido e restaura a luminosidade anterior se a automação for acionada novamente antes de as luzes noturnas se DESLIGAREM.
+
+            Este auxiliar tem de ser utilizado exclusivamente por este campo da automação e não pode ser utilizado no **auxiliar de alternância de Reduzir Luminosidade Antes de Desligar das Luzes Normais**.
+          default: []
+          selector:
+            entity:
+              filter:
+                domain:
+                  - input_boolean
+
+    night_lights_night_glow:
+      name: "Brilho Noturno"
+      icon: mdi:candle
+      collapsed: true
+      input:
+        include_night_glow:
+          name: Brilho Noturno (Opcional)
+          description: >
+            Esta funcionalidade ativa uma luz de baixa intensidade quando não é detetado nenhum acionador, criando um brilho ambiente subtil, ideal para a noite.
+            Quando é detetado um acionador, como um sensor de movimento, a luz aumenta gradualmente até ao nível de luminosidade das luzes noturnas, proporcionando maior visibilidade e funcionalidade sem alterações abruptas na iluminação.
+            Pode também personalizar a temperatura de cor ou a cor RGB da luz para uma personalização adicional.
+
+            **NOTA** - Para o Brilho Noturno funcionar, as Luzes Noturnas têm de estar ativadas e ativas.
+          default: night_glow_disabled
+          selector:
+            select:
+              options:
+                - label: Ativar o brilho noturno
+                  value: "night_glow_enabled"
+                - label: Desativar o brilho noturno
+                  value: "night_glow_disabled"
+        night_glow_lights:
+          name: Brilho Noturno - Luzes
+          description: >
+            As luzes, interruptores, cenas e scripts a utilizar para um brilho noturno.
+            Se adicionar uma cena ou um script, consulte o campo 'Cenas - Scripts para Desligar' na secção de luzes acima.
+            Para mais informações sobre como utilizar cenas e scripts [Clique aqui](https://community.home-assistant.io/t/481048/1595)
+
+            **NOTA** - Só pode utilizar entidades. Áreas, dispositivos e etiquetas não são suportados.
+          default: {}
+          selector:
+            target:
+              entity:
+                domain:
+                  - light
+                  - switch
+                  - scene
+                  - script
+        include_night_glow_light_control:
+          name: Brilho Noturno - Opções de Controlo das Luzes (Opcional)
+          description: >
+            Selecione se pretende utilizar luminosidade ou transição. Estas definições só afetam uma entidade 'light' que suporte cada uma das opções selecionadas.
+            As definições de luminosidade e de transição encontram-se abaixo.
+          default: []
+          selector:
+            select:
+              multiple: true
+              options:
+                - label: Utilizar luminosidade
+                  value: "use_brightness"
+                - label: Utilizar transição
+                  value: "use_transition"
+        night_glow_light_brightness:
+          name: Brilho Noturno - Luminosidade
+          description: >
+            A definição de luminosidade das luzes quando são LIGADAS.
+          default: 20
+          selector:
+            number:
+              min: 1
+              max: 100
+              mode: slider
+              step: 1
+              unit_of_measurement: '%'
+        night_glow_light_transition_on:
+          name: Brilho Noturno - Transição - LIGAR
+          description: >
+            A transição das luzes quando são LIGADAS.
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 5
+              mode: slider
+              step: 0.5
+              unit_of_measurement: segundos
+        night_glow_light_transition_off:
+          name: Brilho Noturno - Transição - DESLIGAR
+          description: >
+            A transição das luzes quando são DESLIGADAS.
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 30
+              mode: slider
+              step: 1
+              unit_of_measurement: segundos
+        include_night_glow_light_colour_control:
+          name: Brilho Noturno - Opções de Controlo de Cor das Luzes (Opcional)
+          description: >
+            Selecione se pretende utilizar temperatura de cor, cor RGB, RGBW ou RGBWW. Estas definições só afetam uma entidade 'light' que suporte cada uma das opções selecionadas.
+            As definições de temperatura de cor e de cor RGB, RGBW e RGBWW encontram-se abaixo
+          default: disable_colour_control
+          selector:
+            select:
+              options:
+                - label: Utilizar Temperatura de Cor
+                  value: "use_colour_temperature"
+                - label: Utilizar Cor RGB
+                  value: "use_rgb_colour"
+                - label: Utilizar Cor RGBW
+                  value: "use_rgbw_colour"
+                - label: Utilizar Cor RGBWW
+                  value: "use_rgbww_colour"
+                - label: Desativar o Controlo de Cor
+                  value: "disable_colour_control"
+        night_glow_light_colour_temperature:
+          name: Brilho Noturno - Temperatura de Cor
+          description: >
+            A definição de temperatura de cor das luzes quando são LIGADAS.
+          default: 5000
+          selector:
+            number:
+              min: 2000
+              max: 8000
+              mode: slider
+              step: 100
+              unit_of_measurement: 'kelvin'
+        night_glow_light_rgb_colour:
+          name: Brilho Noturno - Cor RGB
+          description: >
+            A definição de cor RGB das luzes quando são LIGADAS.
+          default: [255, 255, 255]
+          selector:
+            color_rgb:
+        night_glow_light_rgbw_colour:
+          name: Brilho Noturno - Cor RGBW
+          description: >
+            A definição de cor RGBW das luzes quando são LIGADAS. Introduza quatro números inteiros entre 0 e 255 para definir os valores de Vermelho, Verde, Azul e Branco.
+          default: [255, 255, 255, 255]
+          selector:
+            object:
+        night_glow_light_rgbww_colour:
+          name: Brilho Noturno - Cor RGBWW
+          description: >
+            A definição de cor RGBWW das luzes quando são LIGADAS. Introduza cinco números inteiros entre 0 e 255 para definir os valores de Vermelho, Verde, Azul, Branco Frio e Branco Quente.
+          default: [255, 255, 255, 255, 255]
+          selector:
+            object:
+
+# ---------------------------------------------------------------------------
+# FIM DO BLOCO TRADUZIDO.
+# Continue a partir daqui com o ficheiro original, começando em:
+#   # If motion sensor turns ON again within the time delay, it will restart the script.
+#   mode: restart
+# ---------------------------------------------------------------------------
