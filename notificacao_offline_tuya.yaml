@@ -137,7 +137,7 @@ blueprint:
             text: {}
         mensagem_resolvido:
           name: Mensagem - resolvido
-          description: Variáveis: as anteriores.
+          description: "Variáveis: as anteriores."
           default: "{{ nomes | join(', ') }} {{ 'estava' if qtd == 1 else 'estavam' }} offline. Reiniciei a integração {{ integracao }} e {{ 'voltou' if qtd == 1 else 'voltaram' }} ao normal."
           selector:
             text:
@@ -149,7 +149,7 @@ blueprint:
             text: {}
         mensagem_atencao:
           name: Mensagem - precisa de atenção
-          description: Variáveis: as anteriores, mais restantes_nomes e restantes_qtd.
+          description: "Variáveis: as anteriores, mais restantes_nomes e restantes_qtd."
           default: "Reiniciei a integração {{ integracao }}, mas {{ restantes_nomes | join(', ') }} {{ 'continua' if restantes_qtd == 1 else 'continuam' }} offline. {{ 'Precisa' if restantes_qtd == 1 else 'Precisam' }} da tua atenção."
           selector:
             text:
