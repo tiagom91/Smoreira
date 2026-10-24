@@ -1,0 +1,369 @@
+blueprint:
+  name: Notificação offline Tuya
+  description: >
+    Avisa quando dispositivos Tuya (luzes, interruptores, etc.) ficam offline.
+    Pode monitorizar só alguns dispositivos ou todos menos alguns, tentar
+    recarregar a integração Tuya e dizer se resolveu ou se precisa de atenção.
+    Opcionalmente atualiza um alternar e um texto para mostrar num dashboard.
+  domain: automation
+  author: Tiago
+  source_url: https://github.com/tiagom91/Smoreira/blob/master/notificacao_offline_tuya.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    seccao_dispositivos:
+      name: Dispositivos
+      icon: mdi:devices
+      input:
+        modo:
+          name: Modo de seleção
+          description: Escolhe se a lista abaixo é o que se monitoriza ou o que se ignora.
+          default: excluir
+          selector:
+            select:
+              mode: list
+              options:
+                - label: Monitorizar só os dispositivos escolhidos
+                  value: monitorizar
+                - label: Monitorizar todos, exceto os escolhidos
+                  value: excluir
+        dispositivos:
+          name: Dispositivos Tuya
+          description: >
+            Com "monitorizar só", uma lista vazia não vigia nada. Com
+            "exceto os escolhidos", uma lista vazia vigia todos.
+          default: []
+          selector:
+            device:
+              integration: tuya
+              multiple: true
+        dominios:
+          name: Tipos de entidade a vigiar
+          description: >
+            Um dispositivo tem várias entidades. Por defeito só se vigiam
+            luzes e interruptores.
+          default:
+            - light
+            - switch
+          selector:
+            select:
+              multiple: true
+              mode: dropdown
+              options:
+                - light
+                - switch
+                - sensor
+                - binary_sensor
+                - climate
+                - cover
+                - fan
+                - humidifier
+                - lock
+    seccao_notificacao:
+      name: Notificação
+      icon: mdi:bell
+      input:
+        destinatarios:
+          name: Destinatários
+          description: Uma ou mais entidades de notificação (por exemplo os telemóveis).
+          selector:
+            entity:
+              domain: notify
+              multiple: true
+        acoes_extra:
+          name: Ações adicionais (opcional)
+          description: >
+            Executadas depois da notificação (TTS, notificação persistente,
+            outro serviço de notificação...). Podes usar {{ titulo }} e
+            {{ mensagem }}.
+          default: []
+          selector:
+            action: {}
+        helper_atencao:
+          name: Indicador "precisa de atenção" (opcional)
+          description: >
+            Alternar (input_boolean) que fica ligado quando é preciso atenção
+            e desligado quando o incidente é resolvido.
+          default: []
+          selector:
+            entity:
+              domain: input_boolean
+              multiple: true
+        helper_mensagem:
+          name: Texto da última mensagem (opcional)
+          description: >
+            Texto (input_text, com comprimento máximo 255) onde fica guardada
+            a mensagem do último incidente, para mostrar no dashboard.
+          default: []
+          selector:
+            entity:
+              domain: input_text
+              multiple: true
+    seccao_comportamento:
+      name: Comportamento
+      icon: mdi:cog
+      collapsed: true
+      input:
+        espera:
+          name: Tempo offline antes de agir (minutos)
+          description: Evita avisos por falhas curtas.
+          default: 2
+          selector:
+            number:
+              min: 1
+              max: 60
+              unit_of_measurement: min
+              mode: slider
+        reiniciar:
+          name: Recarregar a integração Tuya
+          description: >
+            Tenta recuperar recarregando a integração e avisa se resolveu ou
+            se precisa de atenção. Se desligado, só envia o aviso de offline.
+          default: true
+          selector:
+            boolean: {}
+        pausa:
+          name: Pausa entre avisos (minutos)
+          description: Tempo em que novos avisos são ignorados depois de tratar um incidente.
+          default: 5
+          selector:
+            number:
+              min: 0
+              max: 120
+              unit_of_measurement: min
+              mode: slider
+    seccao_mensagens:
+      name: Mensagens
+      icon: mdi:message-text
+      collapsed: true
+      input:
+        titulo_offline:
+          name: Título - offline
+          description: Usado quando a recarga está desligada.
+          default: "⚠️ Tuya offline"
+          selector:
+            text: {}
+        mensagem_offline:
+          name: Mensagem - offline
+          description: >
+            Variáveis: nomes (lista de dispositivos), qtd, divisoes (lista),
+            espera (min), integracao.
+          default: "{{ nomes | join(', ') }} {{ 'está' if qtd == 1 else 'estão' }} offline há mais de {{ espera | int }} min."
+          selector:
+            text:
+              multiline: true
+        titulo_resolvido:
+          name: Título - resolvido
+          default: "✅ Tuya recuperado"
+          selector:
+            text: {}
+        mensagem_resolvido:
+          name: Mensagem - resolvido
+          description: "Variáveis: as anteriores."
+          default: "{{ nomes | join(', ') }} {{ 'estava' if qtd == 1 else 'estavam' }} offline. Reiniciei a integração {{ integracao }} e {{ 'voltou' if qtd == 1 else 'voltaram' }} ao normal."
+          selector:
+            text:
+              multiline: true
+        titulo_atencao:
+          name: Título - precisa de atenção
+          default: "⚠️ Tuya precisa de atenção"
+          selector:
+            text: {}
+        mensagem_atencao:
+          name: Mensagem - precisa de atenção
+          description: "Variáveis: as anteriores, mais restantes_nomes e restantes_qtd."
+          default: "Reiniciei a integração {{ integracao }}, mas {{ restantes_nomes | join(', ') }} {{ 'continua' if restantes_qtd == 1 else 'continuam' }} offline. {{ 'Precisa' if restantes_qtd == 1 else 'Precisam' }} da tua atenção."
+          selector:
+            text:
+              multiline: true
+
+mode: single
+max_exceeded: silent
+
+variables:
+  modo: !input modo
+  dispositivos_sel: !input dispositivos
+  dominios_sel: !input dominios
+  destinatarios_sel: !input destinatarios
+  helper_atencao_sel: !input helper_atencao
+  helper_mensagem_sel: !input helper_mensagem
+  espera: !input espera
+  reiniciar: !input reiniciar
+  integracao: Tuya
+
+triggers:
+  - trigger: event
+    event_type: state_changed
+
+conditions:
+  - condition: template
+    value_template: >
+      {% set e = trigger.event.data.entity_id %}
+      {% set new = trigger.event.data.new_state %}
+      {% set old = trigger.event.data.old_state %}
+      {{ e.split('.')[0] in dominios_sel
+         and new is not none
+         and new.state == 'unavailable'
+         and (old is none or old.state != 'unavailable')
+         and e in integration_entities('tuya')
+         and ((device_id(e) in dispositivos_sel) == (modo == 'monitorizar')) }}
+
+actions:
+  - variables:
+      eid: "{{ trigger.event.data.entity_id }}"
+      entry: "{{ config_entry_id(eid) }}"
+  - delay:
+      minutes: !input espera
+  # Se recuperou sozinho, termina sem avisar
+  - condition: template
+    value_template: "{{ is_state(eid, 'unavailable') }}"
+  - variables:
+      afetados_ids: >
+        {% set ns = namespace(l=[]) %}
+        {% for e in integration_entities('tuya') if e.split('.')[0] in dominios_sel and is_state(e, 'unavailable') %}
+        {% if (device_id(e) in dispositivos_sel) == (modo == 'monitorizar') %}{% set ns.l = ns.l + [e] %}{% endif %}
+        {% endfor %}
+        {{ ns.l }}
+  - variables:
+      nomes: >
+        {% set ns = namespace(l=[]) %}
+        {% for e in afetados_ids %}{% set n = (device_attr(e, 'name_by_user') or device_attr(e, 'name') or state_attr(e, 'friendly_name') or e) | trim %}{% if n not in ns.l %}{% set ns.l = ns.l + [n] %}{% endif %}{% endfor %}
+        {{ ns.l }}
+      divisoes: >
+        {% set ns = namespace(l=[]) %}
+        {% for e in afetados_ids %}{% set a = area_name(e) %}{% if a and a not in ns.l %}{% set ns.l = ns.l + [a] %}{% endif %}{% endfor %}
+        {{ ns.l }}
+  - variables:
+      qtd: "{{ nomes | length }}"
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ reiniciar }}"
+        sequence:
+          - action: homeassistant.reload_config_entry
+            continue_on_error: true
+            data:
+              entry_id: "{{ entry }}"
+          - delay: "00:00:15"
+          - wait_template: >
+              {{ afetados_ids | map('states') | select('in', ['unavailable', 'unknown']) | list | length == 0 }}
+            timeout: "00:02:00"
+            continue_on_timeout: true
+          - variables:
+              restantes_ids: >
+                {% set ns = namespace(l=[]) %}
+                {% for e in afetados_ids if states(e) in ['unavailable', 'unknown'] %}{% set ns.l = ns.l + [e] %}{% endfor %}
+                {{ ns.l }}
+          - variables:
+              restantes_nomes: >
+                {% set ns = namespace(l=[]) %}
+                {% for e in restantes_ids %}{% set n = (device_attr(e, 'name_by_user') or device_attr(e, 'name') or state_attr(e, 'friendly_name') or e) | trim %}{% if n not in ns.l %}{% set ns.l = ns.l + [n] %}{% endif %}{% endfor %}
+                {{ ns.l }}
+          - variables:
+              restantes_qtd: "{{ restantes_nomes | length }}"
+          - choose:
+              # Resolvido
+              - conditions:
+                  - condition: template
+                    value_template: "{{ restantes_qtd == 0 }}"
+                sequence:
+                  - variables:
+                      titulo: !input titulo_resolvido
+                      mensagem: !input mensagem_resolvido
+                  - if:
+                      - condition: template
+                        value_template: "{{ destinatarios_sel | length > 0 }}"
+                    then:
+                      - action: notify.send_message
+                        target:
+                          entity_id: !input destinatarios
+                        data:
+                          title: "{{ titulo }}"
+                          message: "{{ mensagem }}"
+                  - if:
+                      - condition: template
+                        value_template: "{{ helper_atencao_sel | length > 0 }}"
+                    then:
+                      - action: input_boolean.turn_off
+                        target:
+                          entity_id: !input helper_atencao
+                  - if:
+                      - condition: template
+                        value_template: "{{ helper_mensagem_sel | length > 0 }}"
+                    then:
+                      - action: input_text.set_value
+                        target:
+                          entity_id: !input helper_mensagem
+                        data:
+                          value: "{{ mensagem[:255] }}"
+                  - choose: []
+                    default: !input acoes_extra
+            # Precisa de atenção
+            default:
+              - variables:
+                  titulo: !input titulo_atencao
+                  mensagem: !input mensagem_atencao
+              - if:
+                  - condition: template
+                    value_template: "{{ destinatarios_sel | length > 0 }}"
+                then:
+                  - action: notify.send_message
+                    target:
+                      entity_id: !input destinatarios
+                    data:
+                      title: "{{ titulo }}"
+                      message: "{{ mensagem }}"
+              - if:
+                  - condition: template
+                    value_template: "{{ helper_atencao_sel | length > 0 }}"
+                then:
+                  - action: input_boolean.turn_on
+                    target:
+                      entity_id: !input helper_atencao
+              - if:
+                  - condition: template
+                    value_template: "{{ helper_mensagem_sel | length > 0 }}"
+                then:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: !input helper_mensagem
+                    data:
+                      value: "{{ mensagem[:255] }}"
+              - choose: []
+                default: !input acoes_extra
+    # Recarga desligada: só avisa que está offline
+    default:
+      - variables:
+          titulo: !input titulo_offline
+          mensagem: !input mensagem_offline
+      - if:
+          - condition: template
+            value_template: "{{ destinatarios_sel | length > 0 }}"
+        then:
+          - action: notify.send_message
+            target:
+              entity_id: !input destinatarios
+            data:
+              title: "{{ titulo }}"
+              message: "{{ mensagem }}"
+      - if:
+          - condition: template
+            value_template: "{{ helper_atencao_sel | length > 0 }}"
+        then:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: !input helper_atencao
+      - if:
+          - condition: template
+            value_template: "{{ helper_mensagem_sel | length > 0 }}"
+        then:
+          - action: input_text.set_value
+            target:
+              entity_id: !input helper_mensagem
+            data:
+              value: "{{ mensagem[:255] }}"
+      - choose: []
+        default: !input acoes_extra
+  # Pausa antes de voltar a tratar novos incidentes
+  - delay:
+      minutes: !input pausa
