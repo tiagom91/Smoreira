@@ -1,0 +1,141 @@
+blueprint:
+  name: "Notificação e Controlo de Luzes/Switches Ligados Há Muito Tempo"
+  description: >
+    Monitoriza luzes ou interruptores ligados por mais de X minutos e envia uma notificação interativa.
+    Permite filtrar por inclusão, exclusão ou monitorizar todos os dispositivos das categorias selecionadas.
+  domain: automation
+  input:
+    mode:
+      name: Modo de Seleção
+      description: Choose how to filter entities.
+      default: "all"
+      selector:
+        select:
+          options:
+            - label: "Todos os dispositivos das entidades/áreas selecionadas"
+              value: "all"
+            - label: "Lista de Inclusão (Apenas estas entidades)"
+              value: "include"
+            - label: "Lista de Exclusão (Todas exceto estas entidades)"
+              value: "exclude"
+
+    target_entities:
+      name: Entidades Alvo (Inclusão/Exclusão)
+      description: Seleciona as luzes ou switches a incluir ou excluir (consoante o Modo de Seleção).
+      default: []
+      selector:
+        target:
+          entity:
+            - domain: light
+            - domain: switch
+
+    timeout_minutes:
+      name: Tempo Limite (Minutos)
+      description: Tempo em minutos que o dispositivo pode estar ligado antes de notificar.
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 720
+          unit_of_measurement: min
+          mode: slider
+
+    notify_device:
+      name: Dispositivo para Notificação
+      description: Telemóvel/Dispositivo que vai receber a notificação interativa.
+      selector:
+        device:
+          integration: mobile_app
+
+    auto_off_after_notification:
+      name: Auto-Apagar se não houver resposta
+      description: Se selecionado, apaga a luz automaticamente passados Y minutos após a notificação caso não cliques em nenhum botão.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 60
+          unit_of_measurement: min
+          mode: slider
+
+mode: restart
+max_exceeded: silent
+
+trigger:
+  - platform: state
+    entity_id: [] # Preenchido via template no bloco de condição ou por estado geral
+    to: "on"
+    for:
+      minutes: !input timeout_minutes
+
+variables:
+  select_mode: !input mode
+  target_data: !input target_entities
+  included_entities: >
+    {{ target_data.get('entity_id', []) if target_data.get('entity_id') is iterable and target_data.get('entity_id') is not string else ([target_data.get('entity_id')] if target_data.get('entity_id') else []) }}
+  action_turn_off: "TURN_OFF_{{ context.id }}"
+  action_keep_on: "KEEP_ON_{{ context.id }}"
+
+condition:
+  - condition: template
+    value_template: >
+      {% set domain = trigger.entity_id.split('.')[0] %}
+      {% if domain not in ['light', 'switch'] %}
+        false
+      {% elif select_mode == 'include' %}
+        {{ trigger.entity_id in included_entities }}
+      {% elif select_mode == 'exclude' %}
+        {{ trigger.entity_id not in included_entities }}
+      {% else %}
+        true
+      {% endif %}
+
+action:
+  - service: notify.mobile_app_{{ device_attr(notify_device, 'name') | slugify }}
+    data:
+      title: "💡 Luz / Switch ligado há muito tempo"
+      message: "O dispositivo '{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.entity_id }}' está ligado há mais de {{ timeout_minutes }} minutos."
+      data:
+        tag: "light_timeout_{{ trigger.entity_id }}"
+        actions:
+          - action: "{{ action_turn_off }}"
+            title: "Apagar Agora"
+          - action: "{{ action_keep_on }}"
+            title: "Manter Ligado"
+
+  - wait_for_trigger:
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: "{{ action_turn_off }}"
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: "{{ action_keep_on }}"
+    timeout:
+      minutes: !input auto_off_after_notification
+    continue_on_timeout: true
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ wait.trigger.event.data.action == action_turn_off if wait.trigger else true }}"
+        sequence:
+          - service: homeassistant.turn_off
+            target:
+              entity_id: "{{ trigger.entity_id }}"
+          - service: notify.mobile_app_{{ device_attr(notify_device, 'name') | slugify }}
+            data:
+              message: clear_notification
+              data:
+                tag: "light_timeout_{{ trigger.entity_id }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ wait.trigger.event.data.action == action_keep_on }}"
+        sequence:
+          - service: notify.mobile_app_{{ device_attr(notify_device, 'name') | slugify }}
+            data:
+              message: clear_notification
+              data:
+                tag: "light_timeout_{{ trigger.entity_id }}"
