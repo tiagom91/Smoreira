@@ -1,33 +1,13 @@
 blueprint:
-  name: "Notificação e Controlo de Luzes/Switches Ligados Há Muito Tempo"
+  name: "Notificação e Controlo Global de Luzes/Switches Ligados"
   description: >
-    Monitoriza luzes ou switches ligados há mais de X minutos e envia uma notificação interativa com opções para apagar ou manter ligado.
+    Monitoriza TODAS as luzes e switches da casa automaticamente. 
+    Permite definir uma lista opcional de exclusão para ignorar certas entidades.
   domain: automation
   input:
-    monitored_entities:
-      name: Entidades a Monitorizar
-      description: Seleciona as luzes ou switches que pretendes monitorizar.
-      selector:
-        target:
-          entity:
-            - domain: light
-            - domain: switch
-
-    mode:
-      name: Modo de Seleção
-      description: "Define se as entidades acima são uma lista de Inclusão (apenas estas) ou Exclusão (todas exceto estas)."
-      default: "include"
-      selector:
-        select:
-          options:
-            - label: "Apenas as entidades selecionadas (Inclusão)"
-              value: "include"
-            - label: "Excluir as entidades selecionadas (Todas as outras)"
-              value: "exclude"
-
     timeout_minutes:
       name: Tempo Limite (Minutos)
-      description: Tempo em minutos que a luz/switch pode estar ligada antes de disparar o aviso.
+      description: Tempo que o dispositivo pode estar ligado antes de notificar.
       default: 30
       selector:
         number:
@@ -35,6 +15,16 @@ blueprint:
           max: 720
           unit_of_measurement: min
           mode: slider
+
+    excluded_entities:
+      name: Entidades a Excluir (Opcional)
+      description: Luzes ou switches que NUNCA devem ser desligados ou notificados (ex: aquário, luzes de presença).
+      default: []
+      selector:
+        target:
+          entity:
+            - domain: light
+            - domain: switch
 
     notify_device:
       name: Dispositivo para Notificação
@@ -45,7 +35,7 @@ blueprint:
 
     auto_off_after_notification:
       name: Auto-Apagar (Minutos após notificação)
-      description: "Tempo em minutos a aguardar após a notificação. Se não responderes, a luz apaga-se automaticamente (0 = Desativado)."
+      description: Tempo a aguardar. Se não responderes à notificação, a luz apaga-se automaticamente (0 = desativado).
       default: 10
       selector:
         number:
@@ -55,50 +45,60 @@ blueprint:
           mode: slider
 
 mode: parallel
-max: 10
+max: 20
 
 trigger:
-  - platform: state
-    entity_id:
-      - light.all_lights
-      - switch.all_switches
-    to: "on"
-    for:
-      minutes: !input timeout_minutes
+  - platform: event
+    event_type: state_changed
 
 variables:
-  select_mode: !input mode
-  target_input: !input monitored_entities
-  selected_entities: >
+  timeout_sec: "{{ minutes * 60 }}"
+  minutes: !input timeout_minutes
+  target_input: !input excluded_entities
+  excluded_list: >
     {{ target_input.entity_id if target_input.entity_id is list else ([target_input.entity_id] if target_input.entity_id is defined else []) }}
-  action_turn_off: "TURN_OFF_{{ trigger.entity_id | replace('.', '_') }}"
-  action_keep_on: "KEEP_ON_{{ trigger.entity_id | replace('.', '_') }}"
+  entity: "{{ trigger.event.data.entity_id }}"
+  domain: "{{ entity.split('.')[0] }}"
+  action_turn_off: "TURN_OFF_{{ entity | replace('.', '_') }}"
+  action_keep_on: "KEEP_ON_{{ entity | replace('.', '_') }}"
 
 condition:
   - condition: template
     value_template: >
-      {% set entity = trigger.entity_id %}
-      {% set is_selected = entity in selected_entities %}
-      {% if select_mode == 'include' %}
-        {{ is_selected }}
-      {% else %}
-        {{ not is_selected }}
-      {% endif %}
+      {{ domain in ['light', 'switch'] }}
+  - condition: template
+    value_template: >
+      {{ entity not in excluded_list }}
+  - condition: template
+    value_template: >
+      {{ trigger.event.data.new_state.state == 'on' }}
+  - condition: template
+    value_template: >
+      {{ trigger.event.data.old_state.state != 'on' }}
 
 action:
+  # Aguarda o tempo limite mantendo a verificação se a luz continua ligada
+  - delay:
+      minutes: !input timeout_minutes
+
+  - condition: template
+    value_template: "{{ states(entity) == 'on' }}"
+
+  # Envia notificação interativa
   - domain: mobile_app
     type: notify
     device_id: !input notify_device
     title: "💡 Luz / Switch ligado há muito tempo"
-    message: "O dispositivo '{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.entity_id }}' está ligado há mais de {{ timeout_minutes }} minutos."
+    message: "O dispositivo '{{ state_attr(entity, 'friendly_name') or entity }}' está ligado há mais de {{ minutes }} minutos."
     data:
-      tag: "light_timeout_{{ trigger.entity_id | replace('.', '_') }}"
+      tag: "light_timeout_{{ entity | replace('.', '_') }}"
       actions:
         - action: "{{ action_turn_off }}"
           title: "Apagar Agora"
         - action: "{{ action_keep_on }}"
           title: "Manter Ligado"
 
+  # Aguarda resposta da notificação ou timeout de auto-off
   - wait_for_trigger:
       - platform: event
         event_type: mobile_app_notification_action
@@ -113,6 +113,7 @@ action:
     continue_on_timeout: true
 
   - choose:
+      # Se clicou em Apagar OU se o tempo esgotou sem resposta
       - conditions:
           - condition: template
             value_template: >
@@ -120,14 +121,15 @@ action:
         sequence:
           - service: homeassistant.turn_off
             target:
-              entity_id: "{{ trigger.entity_id }}"
+              entity_id: "{{ entity }}"
           - domain: mobile_app
             type: notify
             device_id: !input notify_device
             message: clear_notification
             data:
-              tag: "light_timeout_{{ trigger.entity_id | replace('.', '_') }}"
+              tag: "light_timeout_{{ entity | replace('.', '_') }}"
 
+      # Se clicou em Manter Ligado
       - conditions:
           - condition: template
             value_template: "{{ wait.trigger is not none and wait.trigger.event.data.action == action_keep_on }}"
@@ -137,4 +139,4 @@ action:
             device_id: !input notify_device
             message: clear_notification
             data:
-              tag: "light_timeout_{{ trigger.entity_id | replace('.', '_') }}"
+              tag: "light_timeout_{{ entity | replace('.', '_') }}"
