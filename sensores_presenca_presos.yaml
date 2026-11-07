@@ -1,0 +1,92 @@
+blueprint:
+  name: Aviso de sensor de presença/movimento preso
+  description: >
+    Avisa quando um sensor de presença ou movimento fica no estado "ativo"
+    (on) durante mais do que o tempo definido. Normalmente indica um sensor
+    com problemas (bloqueado, com interferência, bateria fraca ou a detetar
+    movimento constante). Envia uma notificação por cada sensor afetado.
+  domain: automation
+  author: Tiago
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    sensores:
+      name: Sensores a monitorizar
+      description: >
+        Sensores de presença, ocupação ou movimento a validar.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: binary_sensor
+              device_class:
+                - motion
+                - occupancy
+                - presence
+    tempo_max:
+      name: Tempo máximo ativo
+      description: >
+        Se um sensor estiver ativo durante este tempo, é enviado o aviso.
+        Atenção: sensores de presença (mmWave) podem ficar ativos durante
+        muito tempo se houver alguém na divisão. Ajusta ao tipo de sensor.
+      default:
+        hours: 1
+        minutes: 0
+        seconds: 0
+      selector:
+        duration:
+    servicos_notificacao:
+      name: Serviços de notificação
+      description: >
+        Um ou mais serviços de notificação (um por linha/entrada), por
+        exemplo notify.notify ou notify.mobile_app_telemovel_tiago.
+      default:
+        - notify.notify
+      selector:
+        text:
+          multiple: true
+    titulo:
+      name: Título da notificação
+      default: "Sensor com problemas"
+      selector:
+        text:
+    mensagem:
+      name: Mensagem da notificação
+      description: >
+        Variáveis disponíveis: {{ sensor_nome }}, {{ sensor_id }},
+        {{ area }} e {{ minutos }}.
+      default: >-
+        O sensor {{ sensor_nome }}{% if area %} ({{ area }}){% endif %} está
+        ativo há mais de {{ minutos }} minutos. Pode estar com problemas.
+      selector:
+        text:
+          multiline: true
+
+mode: parallel
+max: 50
+max_exceeded: silent
+
+variables:
+  tempo_max: !input tempo_max
+  sensor_id: "{{ trigger.entity_id }}"
+  sensor_nome: "{{ trigger.to_state.name }}"
+  area: "{{ area_name(trigger.entity_id) or '' }}"
+  minutos: >-
+    {{ ((tempo_max.get('hours', 0) | int(0)) * 60
+        + (tempo_max.get('minutes', 0) | int(0))
+        + (tempo_max.get('seconds', 0) | int(0)) / 60) | round(0) | int }}
+
+triggers:
+  - trigger: state
+    entity_id: !input sensores
+    to: "on"
+    for: !input tempo_max
+
+actions:
+  - repeat:
+      for_each: !input servicos_notificacao
+      sequence:
+        - action: "{{ repeat.item }}"
+          data:
+            title: !input titulo
+            message: !input mensagem
