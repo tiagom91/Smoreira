@@ -10,12 +10,9 @@ blueprint:
       name: Sensores de Movimento/Presença
       description: Seleciona os sensores a monitorizar.
       selector:
-        target:
-          entity:
-            - domain: binary_sensor
-              device_class: motion
-            - domain: binary_sensor
-              device_class: occupancy
+        entity:
+          domain: binary_sensor
+          multiple: true
 
     stuck_timeout:
       name: Tempo Limite (Minutos)
@@ -46,11 +43,11 @@ trigger:
       minutes: !input stuck_timeout
 
 variables:
-  sensor_name: "{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.entity_id }}"
   triggered_entity: "{{ trigger.entity_id }}"
+  sensor_name: "{{ state_attr(triggered_entity, 'friendly_name') or triggered_entity }}"
 
 action:
-  # 1. Notificação inicial de alerta
+  # 1. Notificação de alerta
   - domain: mobile_app
     type: notify
     device_id: !input notify_device
@@ -59,17 +56,16 @@ action:
     data:
       tag: "stuck_sensor_{{ triggered_entity | replace('.', '_') }}"
 
-  # 2. Reinício correto da integração MQTT via Config Entry ID
+  # 2. Reinicia a Integração MQTT via Config Entry ID
   - service: homeassistant.reload_config_entry
     data:
       entry_id: "{{ config_entry_ids('mqtt') | first }}"
     continue_on_error: true
 
-  # Backup: recarrega configurações relativas ao broker MQTT se aplicável
   - service: mqtt.reload
     continue_on_error: true
 
-  # 3. Aguarda que o sensor específico que disparou volte a "off"
+  # 3. Aguarda que o sensor específico volte a "off"
   - wait_for_trigger:
       - platform: template
         value_template: "{{ is_state(triggered_entity, 'off') }}"
@@ -77,7 +73,7 @@ action:
       minutes: 10
     continue_on_timeout: true
 
-  # 4. Confirmação de resolução
+  # 4. Notificação de resolução
   - domain: mobile_app
     type: notify
     device_id: !input notify_device
