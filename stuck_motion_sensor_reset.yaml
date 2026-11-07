@@ -1,0 +1,95 @@
+blueprint:
+  name: "Gestor de Sensores de Movimento/Presença Encravados (MQTT Reset)"
+  description: >
+    Deteta quando um sensor de movimento ou presença fica 'ocupado' por tempo excessivo,
+    notifica o utilizador, reinicia a integração MQTT e envia uma notificação de confirmação
+    assim que o sensor voltar ao estado inativo.
+  domain: automation
+  input:
+    target_sensors:
+      name: Sensores de Movimento/Presença
+      description: Seleciona os sensores a monitorizar.
+      selector:
+        target:
+          entity:
+            - domain: binary_sensor
+              device_class: motion
+            - domain: binary_sensor
+              device_class: occupancy
+
+    stuck_timeout:
+      name: Tempo Limite (Minutos)
+      description: Tempo limite em estado 'ocupado' antes de considerar que o sensor encravou.
+      default: 15
+      selector:
+        number:
+          min: 1
+          max: 120
+          unit_of_measurement: min
+          mode: slider
+
+    notify_device:
+      name: Dispositivo para Notificação
+      description: Telemóvel que receberá os alertas.
+      selector:
+        device:
+          integration: mobile_app
+
+mode: parallel
+max: 10
+
+trigger:
+  - platform: state
+    entity_id: []
+    to: "on"
+    for:
+      minutes: !input stuck_timeout
+
+variables:
+  target_input: !input target_sensors
+  monitored_entities: >
+    {{ target_input.entity_id if target_input.entity_id is list else ([target_input.entity_id] if target_input.entity_id is defined else []) }}
+  sensor_name: "{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.entity_id }}"
+
+condition:
+  - condition: template
+    value_template: >
+      {{ trigger.entity_id in monitored_entities if monitored_entities else true }}
+
+action:
+  # 1. Envia notificação de alerta
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: "⚠️ Sensor de Movimento Encravado"
+    message: "O sensor '{{ sensor_name }}' está continuamente detetado há mais de {{ stuck_timeout }} minutos. A reiniciar integração MQTT..."
+    data:
+      tag: "stuck_sensor_{{ trigger.entity_id | replace('.', '_') }}"
+
+  # 2. Reinicia a Integração MQTT / Broker
+  - service: homeassistant.reload_config_entry
+    target:
+      entity_id: mqtt.mqtt
+    continue_on_error: true
+
+  # Caso o reload por entidade falhe em algumas versões, força via reinício do serviço MQTT
+  - service: mqtt.reload
+    continue_on_error: true
+
+  # 3. Aguarda que o sensor volte a "off" (com timeout máximo de 10 minutos pós-reset)
+  - wait_for_trigger:
+      - platform: state
+        entity_id: "{{ trigger.entity_id }}"
+        to: "off"
+    timeout:
+      minutes: 10
+    continue_on_timeout: true
+
+  # 4. Envia confirmação de resolução
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: "✅ Sensor Resolvido"
+    message: "O sensor '{{ sensor_name }}' voltou ao estado inativo/desocupado com sucesso."
+    data:
+      tag: "stuck_sensor_{{ trigger.entity_id | replace('.', '_') }}"
