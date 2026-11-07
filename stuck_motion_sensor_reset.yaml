@@ -50,7 +50,7 @@ variables:
   triggered_entity: "{{ trigger.entity_id }}"
 
 action:
-  # 1. Envia notificação de alerta
+  # 1. Notificação inicial de alerta
   - domain: mobile_app
     type: notify
     device_id: !input notify_device
@@ -59,16 +59,17 @@ action:
     data:
       tag: "stuck_sensor_{{ triggered_entity | replace('.', '_') }}"
 
-  # 2. Reinicia a Integração MQTT
+  # 2. Reinício correto da integração MQTT via Config Entry ID
   - service: homeassistant.reload_config_entry
-    target:
-      entity_id: mqtt.mqtt
+    data:
+      entry_id: "{{ config_entry_ids('mqtt') | first }}"
     continue_on_error: true
 
+  # Backup: recarrega configurações relativas ao broker MQTT se aplicável
   - service: mqtt.reload
     continue_on_error: true
 
-  # 3. Aguarda que o sensor específico que disparou a automação volte a "off"
+  # 3. Aguarda que o sensor específico que disparou volte a "off"
   - wait_for_trigger:
       - platform: template
         value_template: "{{ is_state(triggered_entity, 'off') }}"
@@ -76,7 +77,7 @@ action:
       minutes: 10
     continue_on_timeout: true
 
-  # 4. Envia confirmação de resolução
+  # 4. Confirmação de resolução
   - domain: mobile_app
     type: notify
     device_id: !input notify_device
