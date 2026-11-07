@@ -1,83 +1,227 @@
 blueprint:
-  name: "Gestor de Sensores de Movimento/Presença Encravados (MQTT Reset)"
+  name: Vigilante de sensores de presença e movimento
   description: >
-    Deteta quando um sensor de movimento ou presença fica 'ocupado' por tempo excessivo,
-    notifica o utilizador, reinicia a integração MQTT e envia uma notificação de confirmação
-    assim que o sensor voltar ao estado inativo.
+    Deteta sensores de presença/movimento que ficam "ocupados" há demasiado tempo,
+    avisa, reinicia o MQTT e confirma se o problema ficou resolvido.
+    As mensagens de problema e de resolvido são opcionais; a de falha também,
+    mas é a que se recomenda manter.
   domain: automation
+  min_version: 2024.10.0
   input:
-    target_sensors:
-      name: Sensores de Movimento/Presença
-      description: Seleciona os sensores a monitorizar.
-      selector:
-        entity:
-          domain: binary_sensor
-          multiple: true
+    sensores_section:
+      name: Sensores
+      icon: mdi:motion-sensor
+      collapsed: false
+      input:
+        sensores:
+          name: Sensores de presença / movimento
+          description: Seleciona os binary_sensor a vigiar.
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class:
+                - occupancy
+                - motion
+                - presence
+              multiple: true
+        tempo_maximo:
+          name: Tempo máximo em "ocupado"
+          description: Se um sensor estiver ligado (on) mais do que este tempo, é considerado com problema.
+          default:
+            hours: 4
+            minutes: 0
+            seconds: 0
+          selector:
+            duration:
 
-    stuck_timeout:
-      name: Tempo Limite (Minutos)
-      description: Tempo limite em estado 'ocupado' antes de considerar que o sensor encravou.
-      default: 15
-      selector:
-        number:
-          min: 1
-          max: 120
-          unit_of_measurement: min
-          mode: slider
+    mqtt_section:
+      name: Reinício do MQTT
+      icon: mdi:restart
+      collapsed: true
+      input:
+        mqtt_metodo:
+          name: Método de reinício
+          default: integracao
+          selector:
+            select:
+              options:
+                - label: Recarregar a integração MQTT
+                  value: integracao
+                - label: Reiniciar o add-on Mosquitto
+                  value: addon
+                - label: Ambos (add-on e depois integração)
+                  value: ambos
+        mqtt_entrada:
+          name: Integração MQTT (config entry)
+          description: Necessária para os métodos "integração" e "ambos".
+          default: ""
+          selector:
+            config_entry:
+              integration: mqtt
+        addon_slug:
+          name: Slug do add-on Mosquitto
+          description: Só para os métodos "add-on" e "ambos".
+          default: core_mosquitto
+          selector:
+            text:
+        tempo_espera:
+          name: Tempo de espera após o reinício
+          description: Tempo máximo para os sensores voltarem a "off" antes de dar como não resolvido.
+          default:
+            hours: 0
+            minutes: 2
+            seconds: 0
+          selector:
+            duration:
 
-    notify_device:
-      name: Dispositivo para Notificação
-      description: Telemóvel que receberá os alertas.
-      selector:
-        device:
-          integration: mobile_app
+    notif_section:
+      name: Notificações
+      icon: mdi:bell
+      collapsed: true
+      input:
+        notify_service:
+          name: Serviço de notificação
+          default: notify.notify
+          selector:
+            text:
+        notify_title:
+          name: Título
+          default: Sensores de presença
+          selector:
+            text:
+        enviar_msg_problema:
+          name: Enviar mensagem "problema encontrado"
+          default: true
+          selector:
+            boolean:
+        msg_problema:
+          name: Texto - problema encontrado
+          description: "Variáveis: {{ nomes }} (sensores afetados)."
+          default: "Sensor(es) preso(s) em ocupado: {{ nomes }}. A reiniciar o MQTT..."
+          selector:
+            text:
+              multiline: true
+        enviar_msg_resolvido:
+          name: Enviar mensagem "resolvido"
+          default: true
+          selector:
+            boolean:
+        msg_resolvido:
+          name: Texto - resolvido
+          default: "Problema resolvido após reiniciar o MQTT: {{ nomes }} voltaram a off."
+          selector:
+            text:
+              multiline: true
+        enviar_msg_falha:
+          name: Enviar mensagem "não consegui resolver"
+          default: true
+          selector:
+            boolean:
+        msg_falha:
+          name: Texto - não resolvido
+          default: "Não consegui resolver. Continuam em ocupado: {{ nomes }}. Precisa da tua atenção."
+          selector:
+            text:
+              multiline: true
 
-mode: parallel
-max: 10
-
-trigger:
-  - platform: state
-    entity_id: !input target_sensors
-    to: "on"
-    for:
-      minutes: !input stuck_timeout
+mode: single
+max_exceeded: silent
 
 variables:
-  triggered_entity: "{{ trigger.entity_id }}"
-  sensor_name: "{{ state_attr(triggered_entity, 'friendly_name') or triggered_entity }}"
+  lista_sensores: !input sensores
+  tempo_maximo: !input tempo_maximo
+  mqtt_metodo: !input mqtt_metodo
+  mqtt_entrada: !input mqtt_entrada
+  addon_slug: !input addon_slug
+  notify_service: !input notify_service
+  notify_title: !input notify_title
+  enviar_problema: !input enviar_msg_problema
+  enviar_resolvido: !input enviar_msg_resolvido
+  enviar_falha: !input enviar_msg_falha
+  limite_seg: >
+    {{ (tempo_maximo.hours | default(0) | int * 3600)
+       + (tempo_maximo.minutes | default(0) | int * 60)
+       + (tempo_maximo.seconds | default(0) | int) }}
+  presos: >
+    {% set ns = namespace(l=[trigger.entity_id]) %}
+    {% for s in lista_sensores %}
+      {% if s not in ns.l and is_state(s, 'on')
+         and (now() - states[s].last_changed).total_seconds() >= (limite_seg | int - 2) %}
+        {% set ns.l = ns.l + [s] %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.l }}
+  nomes: >
+    {{ presos | map('state_attr', 'friendly_name') | join(', ') }}
 
-action:
-  # 1. Notificação de alerta
-  - domain: mobile_app
-    type: notify
-    device_id: !input notify_device
-    title: "⚠️ Sensor de Movimento Encravado"
-    message: "O sensor '{{ sensor_name }}' está continuamente detetado há mais de {{ stuck_timeout }} minutos. A reiniciar integração MQTT..."
-    data:
-      tag: "stuck_sensor_{{ triggered_entity | replace('.', '_') }}"
+triggers:
+  - trigger: state
+    entity_id: !input sensores
+    to: "on"
+    for: !input tempo_maximo
 
-  # 2. Reinicia a Integração MQTT via Config Entry ID
-  - service: homeassistant.reload_config_entry
-    data:
-      entry_id: "{{ config_entry_ids('mqtt') | first }}"
-    continue_on_error: true
+actions:
+  # 1) Aviso de problema (opcional)
+  - if:
+      - condition: template
+        value_template: "{{ enviar_problema }}"
+    then:
+      - action: "{{ notify_service }}"
+        continue_on_error: true
+        data:
+          title: "{{ notify_title }}"
+          message: !input msg_problema
 
-  - service: mqtt.reload
-    continue_on_error: true
+  # 2) Reiniciar MQTT
+  - choose:
+      - conditions: "{{ mqtt_metodo in ['addon', 'ambos'] and addon_slug != '' }}"
+        sequence:
+          - action: hassio.addon_restart
+            continue_on_error: true
+            data:
+              addon: "{{ addon_slug }}"
+          - if:
+              - condition: template
+                value_template: "{{ mqtt_metodo == 'ambos' }}"
+            then:
+              - delay: 20
+    default: []
+  - if:
+      - condition: template
+        value_template: "{{ mqtt_metodo in ['integracao', 'ambos'] and mqtt_entrada != '' }}"
+    then:
+      - action: homeassistant.reload_config_entry
+        continue_on_error: true
+        data:
+          entry_id: "{{ mqtt_entrada }}"
 
-  # 3. Aguarda que o sensor específico volte a "off"
-  - wait_for_trigger:
-      - platform: template
-        value_template: "{{ is_state(triggered_entity, 'off') }}"
-    timeout:
-      minutes: 10
+  # 3) Esperar que os sensores afetados voltem a off
+  - wait_template: >
+      {{ presos | select('is_state', 'off') | list | count == presos | count }}
+    timeout: !input tempo_espera
     continue_on_timeout: true
 
-  # 4. Notificação de resolução
-  - domain: mobile_app
-    type: notify
-    device_id: !input notify_device
-    title: "✅ Sensor Resolvido"
-    message: "O sensor '{{ sensor_name }}' voltou ao estado inativo/desocupado com sucesso."
-    data:
-      tag: "stuck_sensor_{{ triggered_entity | replace('.', '_') }}"
+  # 4) Resultado
+  - if:
+      - condition: template
+        value_template: "{{ wait.completed }}"
+    then:
+      - if:
+          - condition: template
+            value_template: "{{ enviar_resolvido }}"
+        then:
+          - action: "{{ notify_service }}"
+            continue_on_error: true
+            data:
+              title: "{{ notify_title }}"
+              message: !input msg_resolvido
+    else:
+      - if:
+          - condition: template
+            value_template: "{{ enviar_falha }}"
+        then:
+          - action: "{{ notify_service }}"
+            continue_on_error: true
+            data:
+              title: "{{ notify_title }}"
+              message: !input msg_falha
