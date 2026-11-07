@@ -1,0 +1,155 @@
+blueprint:
+  name: Sensores de presença/movimento ativos há demasiado tempo
+  author: Tiago
+  description: >-
+    Avisa quando um sensor de presença, ocupação ou movimento fica no estado
+    ativo (on) durante mais de X minutos. Normalmente indica um sensor com
+    problemas (bloqueado, com interferência, bateria fraca ou a detetar
+    movimento constante).
+
+    **Notificações**: escolhe os destinatários (entidades notify), podes criar
+    também uma notificação persistente no HA e executar ações adicionais. O
+    título e a mensagem são personalizáveis.
+
+    Nota: o tempo conta a partir da última mudança de estado do sensor. Um
+    sensor que já estivesse ativo antes de um reinício do HA só é avaliado
+    depois de mudar de estado.
+  domain: automation
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    sensors_section:
+      name: Sensores a monitorizar
+      icon: mdi:motion-sensor
+      collapsed: false
+      input:
+        sensores:
+          name: Sensores
+          description: Sensores de presença, ocupação ou movimento a validar.
+          default: []
+          selector:
+            entity:
+              multiple: true
+              filter:
+                - domain: binary_sensor
+                  device_class:
+                    - motion
+                    - occupancy
+                    - presence
+        max_on_minutes:
+          name: Tempo máximo ativo (minutos)
+          description: >-
+            Passado este tempo com o sensor ativo é enviado o aviso. Sensores
+            de presença (mmWave) podem ficar ativos durante horas se houver
+            alguém na divisão; ajusta ao tipo de sensor.
+          default: 60
+          selector:
+            number:
+              min: 1
+              max: 1440
+              step: 1
+              unit_of_measurement: min
+              mode: box
+    notify_section:
+      name: Notificações
+      icon: mdi:bell-ring
+      collapsed: false
+      input:
+        destinatarios:
+          name: Destinatários
+          description: >-
+            Uma ou mais entidades de notificação (por exemplo os telemóveis).
+            Cada destinatário recebe uma notificação.
+          default: []
+          selector:
+            entity:
+              multiple: true
+              filter:
+                - domain: notify
+        persistent_notification:
+          name: Criar também notificação persistente no HA
+          default: false
+          selector:
+            boolean: {}
+        acoes_extra:
+          name: Ações adicionais (opcional)
+          description: >-
+            Executadas depois da notificação (TTS, outro serviço...). Podes
+            usar {{ titulo }}, {{ mensagem }}, {{ sensor_nome }},
+            {{ sensor_id }}, {{ area }} e {{ tempo }}.
+          default: []
+          selector:
+            action: {}
+    messages_section:
+      name: Mensagens
+      icon: mdi:message-text
+      collapsed: true
+      input:
+        titulo_alerta:
+          name: Título
+          default: "⚠️ Sensor com problemas"
+          selector:
+            text: {}
+        mensagem_alerta:
+          name: Mensagem
+          description: >-
+            Variáveis: sensor_nome, sensor_id, area (vazia se o sensor não
+            tiver área) e tempo (tempo máximo, por exemplo "1 h 30 min").
+          default: "{{ sensor_nome }}{{ (' (' ~ area ~ ')') if area else '' }} está ativo há mais de {{ tempo }}. Pode estar com problemas."
+          selector:
+            text:
+              multiline: true
+
+mode: parallel
+max: 50
+max_exceeded: silent
+
+triggers:
+  - trigger: state
+    entity_id: !input sensores
+    to: "on"
+    for:
+      minutes: !input max_on_minutes
+
+variables:
+  max_on_minutes: !input max_on_minutes
+  destinatarios: !input destinatarios
+  use_persistent: !input persistent_notification
+  sensor_id: "{{ trigger.entity_id }}"
+  sensor_nome: "{{ trigger.to_state.name }}"
+  area: "{{ area_name(trigger.entity_id) or '' }}"
+  tempo: >-
+    {%- macro fmt(m) -%}
+    {%- set h = m // 60 -%}
+    {%- set r = m % 60 -%}
+    {{- (h ~ ' h') if h > 0 else '' -}}
+    {{- ' ' if (h > 0 and r > 0) else '' -}}
+    {{- (r ~ ' min') if (r > 0 or h == 0) else '' -}}
+    {%- endmacro -%}
+    {{ fmt(max_on_minutes | int(60)) }}
+
+actions:
+  - variables:
+      titulo: !input titulo_alerta
+      mensagem: !input mensagem_alerta
+  - if:
+      - condition: template
+        value_template: "{{ destinatarios | length > 0 }}"
+    then:
+      - action: notify.send_message
+        target:
+          entity_id: !input destinatarios
+        data:
+          title: "{{ titulo }}"
+          message: "{{ mensagem }}"
+  - if:
+      - condition: template
+        value_template: "{{ use_persistent }}"
+    then:
+      - action: persistent_notification.create
+        data:
+          title: "{{ titulo }}"
+          message: "{{ mensagem }}"
+          notification_id: "{{ 'sensor_preso_' ~ sensor_id }}"
+  - choose: []
+    default: !input acoes_extra
