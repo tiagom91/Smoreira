@@ -11,9 +11,9 @@ blueprint:
     escolheres. Podes ainda excluir por padrão (regex) no entity_id.
 
 
-    **Notificação**: adiciona a tua ação de notificação (ex.: `notify.mobile_app_...`)
-    e usa as variáveis `{{ title }}`, `{{ message }}`, `{{ friendly_name }}`,
-    `{{ entity_id }}` e `{{ event }}` (alert, off_ok ou off_failed).
+    **Notificações**: escolhe os destinatários (entidades notify). Os avisos do
+    mesmo tipo no mesmo minuto são agrupados numa só mensagem com os nomes das
+    entidades. As mensagens são personalizáveis.
 
 
     Nota: o tempo conta a partir da última mudança de estado. Após um reinício
@@ -127,19 +127,76 @@ blueprint:
       icon: mdi:bell-ring
       collapsed: false
       input:
-        notify_action:
-          name: Ação de notificação
+        destinatarios:
+          name: Destinatários
           description: >-
-            Ex.: action notify.mobile_app_xxx com data title "{{ title }}" e
-            message "{{ message }}".
+            Uma ou mais entidades de notificação (por exemplo os telemóveis).
+            Cada destinatário recebe uma notificação.
           default: []
           selector:
-            action: {}
+            entity:
+              domain:
+                - notify
+              multiple: true
         persistent_notification:
           name: Criar também notificação persistente no HA
           default: false
           selector:
             boolean: {}
+        acoes_extra:
+          name: Ações adicionais (opcional)
+          description: >-
+            Executadas depois da notificação (TTS, outro serviço...). Podes usar
+            {{ titulo }}, {{ mensagem }}, {{ nomes }} (lista de nomes),
+            {{ entity_ids }} (lista) e {{ tipo }} (alerta, desligado ou falha).
+          default: []
+          selector:
+            action: {}
+    messages_section:
+      name: Mensagens
+      icon: mdi:message-text
+      collapsed: true
+      input:
+        titulo_alerta:
+          name: Título - alerta
+          default: "⚠️ Ligado há demasiado tempo"
+          selector:
+            text: {}
+        mensagem_alerta:
+          name: Mensagem - alerta
+          description: >-
+            Variáveis: nomes (lista), qtd, tempo (tempo máximo), atraso (tempo
+            até desligar) e desliga_auto (true/false).
+          default: "{{ nomes | join(', ') }} {{ 'está ligado' if qtd == 1 else 'estão ligados' }} há mais de {{ tempo }}.{{ (' Será desligado automaticamente dentro de ' ~ atraso ~ '.') if desliga_auto else '' }}"
+          selector:
+            text:
+              multiline: true
+        titulo_desligado:
+          name: Título - desligado com sucesso
+          default: "✅ Desligado automaticamente"
+          selector:
+            text: {}
+        mensagem_desligado:
+          name: Mensagem - desligado com sucesso
+          description: >-
+            Variáveis: nomes (lista), qtd e tempo_total (tempo que estiveram
+            ligados até serem desligados).
+          default: "{{ nomes | join(', ') }} {{ 'estava ligado' if qtd == 1 else 'estavam ligados' }} há mais de {{ tempo_total }} e {{ 'foi desligado' if qtd == 1 else 'foram desligados' }} com sucesso."
+          selector:
+            text:
+              multiline: true
+        titulo_falha:
+          name: Título - falha ao desligar
+          default: "⚠️ Falha ao desligar"
+          selector:
+            text: {}
+        mensagem_falha:
+          name: Mensagem - falha ao desligar
+          description: "Variáveis: as mesmas da mensagem de desligado."
+          default: "Não foi possível desligar {{ nomes | join(', ') }} (ligado há mais de {{ tempo_total }})."
+          selector:
+            text:
+              multiline: true
 
 mode: single
 max_exceeded: silent
@@ -157,6 +214,7 @@ variables:
   max_on_minutes: !input max_on_minutes
   auto_off: !input auto_off_enabled
   off_delay: !input auto_off_delay
+  destinatarios: !input destinatarios
   use_persistent: !input persistent_notification
   alert_secs: "{{ (max_on_minutes | int(60)) * 60 }}"
   off_secs: "{{ alert_secs + (off_delay | int(0)) * 60 }}"
@@ -169,6 +227,10 @@ variables:
       {{- (r ~ ' min') if (r > 0 or h == 0) else '' -}}
     {%- endmacro -%}
     {{ {'alert': fmt(max_on_minutes | int(60)), 'off': fmt((max_on_minutes | int(60)) + (off_delay | int(0))), 'delay': fmt(off_delay | int(0))} }}
+  tempo: "{{ labels.alert }}"
+  atraso: "{{ labels.delay }}"
+  tempo_total: "{{ labels.off }}"
+  desliga_auto: "{{ auto_off }}"
   monitored: >-
     {%- set ns = namespace(items=[]) -%}
     {%- for s in states if s.domain in domains and s.state == 'on' -%}
@@ -213,42 +275,69 @@ actions:
         timeout: 15
         continue_on_timeout: true
 
-  - alias: Preparar mensagens
+  - alias: Agrupar entidades por tipo de aviso
     variables:
-      notifications: >-
-        {%- set ns = namespace(items=[]) -%}
-        {%- for e in to_alert -%}
-          {%- set msg = e.name ~ ' está ligado há mais de ' ~ labels.alert
-              ~ ((' e será desligado automaticamente dentro de ' ~ labels.delay) if auto_off else '') ~ '.' -%}
-          {%- set ns.items = ns.items + [{'event': 'alert', 'entity_id': e.entity_id, 'name': e.name, 'message': msg}] -%}
-        {%- endfor -%}
+      eventos: >-
+        {%- set ns = namespace(items=[], ok_n=[], ok_i=[], fa_n=[], fa_i=[]) -%}
         {%- for e in to_off -%}
           {%- if is_state(e.entity_id, 'off') -%}
-            {%- set msg = e.name ~ ' estava ligado há mais de ' ~ labels.off ~ ' e foi desligado com sucesso.' -%}
-            {%- set ns.items = ns.items + [{'event': 'off_ok', 'entity_id': e.entity_id, 'name': e.name, 'message': msg}] -%}
+            {%- set ns.ok_n = ns.ok_n + [e.name] -%}
+            {%- set ns.ok_i = ns.ok_i + [e.entity_id] -%}
           {%- elif e.age < off_secs + 120 -%}
-            {%- set msg = e.name ~ ' está ligado há mais de ' ~ labels.off ~ ' e não foi possível desligá-lo.' -%}
-            {%- set ns.items = ns.items + [{'event': 'off_failed', 'entity_id': e.entity_id, 'name': e.name, 'message': msg}] -%}
+            {%- set ns.fa_n = ns.fa_n + [e.name] -%}
+            {%- set ns.fa_i = ns.fa_i + [e.entity_id] -%}
           {%- endif -%}
         {%- endfor -%}
+        {%- if to_alert | length > 0 -%}
+          {%- set ns.items = ns.items + [{'tipo': 'alerta', 'nomes': to_alert | map(attribute='name') | unique | list, 'entity_ids': to_alert | map(attribute='entity_id') | list}] -%}
+        {%- endif -%}
+        {%- if ns.ok_n | length > 0 -%}
+          {%- set ns.items = ns.items + [{'tipo': 'desligado', 'nomes': ns.ok_n | unique | list, 'entity_ids': ns.ok_i}] -%}
+        {%- endif -%}
+        {%- if ns.fa_n | length > 0 -%}
+          {%- set ns.items = ns.items + [{'tipo': 'falha', 'nomes': ns.fa_n | unique | list, 'entity_ids': ns.fa_i}] -%}
+        {%- endif -%}
         {{ ns.items }}
 
-  - alias: Enviar notificações
+  - alias: Enviar uma notificação por tipo de aviso
     repeat:
-      for_each: "{{ notifications }}"
+      for_each: "{{ eventos }}"
       sequence:
         - variables:
-            event: "{{ repeat.item.event }}"
-            entity_id: "{{ repeat.item.entity_id }}"
-            friendly_name: "{{ repeat.item.name }}"
-            message: "{{ repeat.item.message }}"
-            title: >-
-              {{ {'alert': 'Ligado há demasiado tempo', 'off_ok': 'Desligado automaticamente', 'off_failed': 'Falha ao desligar'}[repeat.item.event] }}
-        - if: "{{ use_persistent }}"
+            tipo: "{{ repeat.item.tipo }}"
+            nomes: "{{ repeat.item.nomes }}"
+            entity_ids: "{{ repeat.item.entity_ids }}"
+            qtd: "{{ repeat.item.nomes | length }}"
+        - variables:
+            titulos:
+              alerta: !input titulo_alerta
+              desligado: !input titulo_desligado
+              falha: !input titulo_falha
+            mensagens:
+              alerta: !input mensagem_alerta
+              desligado: !input mensagem_desligado
+              falha: !input mensagem_falha
+        - variables:
+            titulo: "{{ titulos[tipo] }}"
+            mensagem: "{{ mensagens[tipo] }}"
+        - if:
+            - condition: template
+              value_template: "{{ destinatarios | length > 0 }}"
+          then:
+            - action: notify.send_message
+              target:
+                entity_id: !input destinatarios
+              data:
+                title: "{{ titulo }}"
+                message: "{{ mensagem }}"
+        - if:
+            - condition: template
+              value_template: "{{ use_persistent }}"
           then:
             - action: persistent_notification.create
               data:
-                title: "{{ title }}"
-                message: "{{ message }}"
-                notification_id: "{{ 'luzes_ligadas_' ~ entity_id }}"
-        - sequence: !input notify_action
+                title: "{{ titulo }}"
+                message: "{{ mensagem }}"
+                notification_id: "{{ 'luzes_ligadas_' ~ tipo }}"
+        - choose: []
+          default: !input acoes_extra
