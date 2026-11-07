@@ -1,0 +1,268 @@
+blueprint:
+  name: Sensores de presença/movimento ativos há demasiado tempo
+  author: Tiago
+  description: >-
+    Avisa quando um sensor de presença, ocupação ou movimento fica no estado
+    ativo (on) durante mais de X minutos. Opcionalmente recarrega a integração
+    MQTT para tentar recuperar o sensor e avisa se ficou resolvido ou se
+    precisa de atenção.
+
+    **Recarga MQTT**: só é feita para sensores que pertencem à integração
+    MQTT (por exemplo Zigbee2MQTT). Para os restantes sensores, ou com a
+    recarga desligada, é enviado apenas o aviso.
+
+    **Notificações**: escolhe os destinatários (entidades notify), podes criar
+    também uma notificação persistente no HA e executar ações adicionais. Os
+    títulos e as mensagens são personalizáveis.
+
+    Nota: o tempo conta a partir da última mudança de estado do sensor. Um
+    sensor que já estivesse ativo antes de um reinício do HA só é avaliado
+    depois de mudar de estado.
+  domain: automation
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    sensors_section:
+      name: Sensores a monitorizar
+      icon: mdi:motion-sensor
+      collapsed: false
+      input:
+        sensores:
+          name: Sensores
+          description: Sensores de presença, ocupação ou movimento a validar.
+          default: []
+          selector:
+            entity:
+              multiple: true
+              filter:
+                - domain: binary_sensor
+                  device_class:
+                    - motion
+                    - occupancy
+                    - presence
+        max_on_minutes:
+          name: Tempo máximo ativo (minutos)
+          description: >-
+            Passado este tempo com o sensor ativo, a automação age. Sensores
+            de presença (mmWave) podem ficar ativos durante horas se houver
+            alguém na divisão; ajusta ao tipo de sensor.
+          default: 60
+          selector:
+            number:
+              min: 1
+              max: 1440
+              step: 1
+              unit_of_measurement: min
+              mode: box
+    notify_section:
+      name: Notificações
+      icon: mdi:bell-ring
+      collapsed: false
+      input:
+        destinatarios:
+          name: Destinatários
+          description: >-
+            Uma ou mais entidades de notificação (por exemplo os telemóveis).
+            Cada destinatário recebe uma notificação.
+          default: []
+          selector:
+            entity:
+              multiple: true
+              filter:
+                - domain: notify
+        persistent_notification:
+          name: Criar também notificação persistente no HA
+          default: false
+          selector:
+            boolean: {}
+        acoes_extra:
+          name: Ações adicionais (opcional)
+          description: >-
+            Executadas depois da notificação (TTS, outro serviço...). Podes
+            usar {{ titulo }}, {{ mensagem }}, {{ sensor_nome }},
+            {{ sensor_id }}, {{ area }}, {{ tempo }}, {{ integracao }} e
+            {{ tipo }} (alerta, resolvido ou atencao).
+          default: []
+          selector:
+            action: {}
+    behavior_section:
+      name: Comportamento
+      icon: mdi:cog
+      collapsed: true
+      input:
+        reiniciar:
+          name: Recarregar a integração MQTT
+          description: >-
+            Tenta recuperar o sensor recarregando a integração MQTT e avisa
+            se resolveu ou se precisa de atenção. Só se aplica a sensores MQTT.
+            Se desligado, só envia o aviso.
+          default: true
+          selector:
+            boolean: {}
+        espera_recuperacao:
+          name: Tempo a aguardar pela recuperação (minutos)
+          description: >-
+            Depois de recarregar, tempo máximo a esperar que o sensor volte
+            ao estado inativo (off) antes de dizer que precisa de atenção.
+          default: 2
+          selector:
+            number:
+              min: 1
+              max: 30
+              unit_of_measurement: min
+              mode: slider
+        pausa:
+          name: Pausa entre recargas (minutos)
+          description: >-
+            Tempo de espera depois de tratar um sensor antes de tratar o
+            seguinte, para não recarregar o MQTT várias vezes seguidas.
+          default: 5
+          selector:
+            number:
+              min: 0
+              max: 120
+              unit_of_measurement: min
+              mode: slider
+    messages_section:
+      name: Mensagens
+      icon: mdi:message-text
+      collapsed: true
+      input:
+        titulo_alerta:
+          name: Título - alerta
+          description: Usado quando a recarga está desligada ou o sensor não é MQTT.
+          default: "⚠️ Sensor com problemas"
+          selector:
+            text: {}
+        mensagem_alerta:
+          name: Mensagem - alerta
+          description: >-
+            Variáveis: sensor_nome, sensor_id, area (vazia se o sensor não
+            tiver área), tempo (tempo máximo, por exemplo "1 h 30 min") e
+            integracao.
+          default: "{{ sensor_nome }}{{ (' (' ~ area ~ ')') if area else '' }} está ativo há mais de {{ tempo }}. Pode estar com problemas."
+          selector:
+            text:
+              multiline: true
+        titulo_resolvido:
+          name: Título - resolvido
+          default: "✅ Sensor recuperado"
+          selector:
+            text: {}
+        mensagem_resolvido:
+          name: Mensagem - resolvido
+          description: "Variáveis: as mesmas da mensagem de alerta."
+          default: "{{ sensor_nome }}{{ (' (' ~ area ~ ')') if area else '' }} estava ativo há mais de {{ tempo }}. Recarreguei a integração {{ integracao }} e voltou ao normal."
+          selector:
+            text:
+              multiline: true
+        titulo_atencao:
+          name: Título - precisa de atenção
+          default: "⚠️ Sensor precisa de atenção"
+          selector:
+            text: {}
+        mensagem_atencao:
+          name: Mensagem - precisa de atenção
+          description: "Variáveis: as mesmas da mensagem de alerta."
+          default: "{{ sensor_nome }}{{ (' (' ~ area ~ ')') if area else '' }} estava ativo há mais de {{ tempo }}. Recarreguei a integração {{ integracao }}, mas continua com problemas. Precisa da tua atenção."
+          selector:
+            text:
+              multiline: true
+
+mode: queued
+max: 10
+max_exceeded: silent
+
+triggers:
+  - trigger: state
+    entity_id: !input sensores
+    to: "on"
+    for:
+      minutes: !input max_on_minutes
+
+variables:
+  max_on_minutes: !input max_on_minutes
+  destinatarios: !input destinatarios
+  use_persistent: !input persistent_notification
+  reiniciar: !input reiniciar
+  integracao: MQTT
+  sensor_id: "{{ trigger.entity_id }}"
+  sensor_nome: "{{ trigger.to_state.name }}"
+  area: "{{ area_name(trigger.entity_id) or '' }}"
+  tempo: >-
+    {%- macro fmt(m) -%}
+    {%- set h = m // 60 -%}
+    {%- set r = m % 60 -%}
+    {{- (h ~ ' h') if h > 0 else '' -}}
+    {{- ' ' if (h > 0 and r > 0) else '' -}}
+    {{- (r ~ ' min') if (r > 0 or h == 0) else '' -}}
+    {%- endmacro -%}
+    {{ fmt(max_on_minutes | int(60)) }}
+  pode_reiniciar: "{{ reiniciar and (sensor_id in integration_entities('mqtt')) }}"
+  entry: "{{ config_entry_id(sensor_id) if pode_reiniciar else '' }}"
+
+actions:
+  # Se entretanto recuperou (por exemplo com uma recarga anterior na fila), termina sem avisar
+  - condition: template
+    value_template: "{{ is_state(sensor_id, 'on') }}"
+
+  - alias: Recarregar a integração MQTT e aguardar pela recuperação
+    if:
+      - condition: template
+        value_template: "{{ pode_reiniciar }}"
+    then:
+      - action: homeassistant.reload_config_entry
+        continue_on_error: true
+        data:
+          entry_id: "{{ entry }}"
+      - delay: "00:00:15"
+      - wait_template: "{{ is_state(sensor_id, 'off') }}"
+        timeout:
+          minutes: !input espera_recuperacao
+        continue_on_timeout: true
+
+  - alias: Decidir o tipo de aviso
+    variables:
+      tipo: >-
+        {{ 'alerta' if not pode_reiniciar
+           else ('resolvido' if is_state(sensor_id, 'off') else 'atencao') }}
+      titulos:
+        alerta: !input titulo_alerta
+        resolvido: !input titulo_resolvido
+        atencao: !input titulo_atencao
+      mensagens:
+        alerta: !input mensagem_alerta
+        resolvido: !input mensagem_resolvido
+        atencao: !input mensagem_atencao
+
+  - variables:
+      titulo: "{{ titulos[tipo] }}"
+      mensagem: "{{ mensagens[tipo] }}"
+
+  - if:
+      - condition: template
+        value_template: "{{ destinatarios | length > 0 }}"
+    then:
+      - action: notify.send_message
+        target:
+          entity_id: !input destinatarios
+        data:
+          title: "{{ titulo }}"
+          message: "{{ mensagem }}"
+
+  - if:
+      - condition: template
+        value_template: "{{ use_persistent }}"
+    then:
+      - action: persistent_notification.create
+        data:
+          title: "{{ titulo }}"
+          message: "{{ mensagem }}"
+          notification_id: "{{ 'sensor_preso_' ~ sensor_id }}"
+
+  - choose: []
+    default: !input acoes_extra
+
+  # Pausa antes de tratar o sensor seguinte da fila
+  - delay:
+      minutes: !input pausa
