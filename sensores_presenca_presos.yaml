@@ -4,7 +4,8 @@ blueprint:
     Avisa quando um sensor de presença ou movimento fica no estado "ativo"
     (on) durante mais do que o tempo definido. Normalmente indica um sensor
     com problemas (bloqueado, com interferência, bateria fraca ou a detetar
-    movimento constante). Envia uma notificação por cada sensor afetado.
+    movimento constante). Envia um aviso por cada sensor afetado, pelo tipo
+    de notificação que escolheres.
   domain: automation
   author: Tiago
   homeassistant:
@@ -35,10 +36,25 @@ blueprint:
         seconds: 0
       selector:
         duration:
-    servicos_notificacao:
-      name: Serviços de notificação
+    tipos_notificacao:
+      name: Tipo de notificação
       description: >
-        Um ou mais serviços de notificação (um por linha/entrada), por
+        Escolhe como queres ser avisado. Podes selecionar mais do que um.
+      default:
+        - notify
+      selector:
+        select:
+          multiple: true
+          mode: list
+          options:
+            - label: "Serviço notify (ex.: telemóvel)"
+              value: notify
+            - label: "Notificação persistente do Home Assistant"
+              value: persistente
+    servicos_notificacao:
+      name: Serviços notify
+      description: >
+        Só é usado se escolheres "Serviço notify". Um ou mais serviços, por
         exemplo notify.notify ou notify.mobile_app_telemovel_tiago.
       default:
         - notify.notify
@@ -68,6 +84,7 @@ max_exceeded: silent
 
 variables:
   tempo_max: !input tempo_max
+  tipos_notificacao: !input tipos_notificacao
   sensor_id: "{{ trigger.entity_id }}"
   sensor_nome: "{{ trigger.to_state.name }}"
   area: "{{ area_name(trigger.entity_id) or '' }}"
@@ -83,10 +100,23 @@ triggers:
     for: !input tempo_max
 
 actions:
-  - repeat:
-      for_each: !input servicos_notificacao
-      sequence:
-        - action: "{{ repeat.item }}"
-          data:
-            title: !input titulo
-            message: !input mensagem
+  - if:
+      - condition: template
+        value_template: "{{ 'notify' in tipos_notificacao }}"
+    then:
+      - repeat:
+          for_each: !input servicos_notificacao
+          sequence:
+            - action: "{{ repeat.item }}"
+              data:
+                title: !input titulo
+                message: !input mensagem
+  - if:
+      - condition: template
+        value_template: "{{ 'persistente' in tipos_notificacao }}"
+    then:
+      - action: persistent_notification.create
+        data:
+          notification_id: "sensor_preso_{{ sensor_id }}"
+          title: !input titulo
+          message: !input mensagem
