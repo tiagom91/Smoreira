@@ -19,7 +19,6 @@ blueprint:
     Nota: o tempo conta a partir da última mudança de estado. Após um reinício
     do HA os contadores recomeçam.
   domain: automation
-  min_version: "2024.10.0"
   input:
     scope_section:
       name: Entidades a monitorizar
