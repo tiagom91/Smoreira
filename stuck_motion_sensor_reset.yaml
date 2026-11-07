@@ -40,21 +40,14 @@ max: 10
 
 trigger:
   - platform: state
-    entity_id: []
+    entity_id: !input target_sensors
     to: "on"
     for:
       minutes: !input stuck_timeout
 
 variables:
-  target_input: !input target_sensors
-  monitored_entities: >
-    {{ target_input.entity_id if target_input.entity_id is list else ([target_input.entity_id] if target_input.entity_id is defined else []) }}
   sensor_name: "{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.entity_id }}"
-
-condition:
-  - condition: template
-    value_template: >
-      {{ trigger.entity_id in monitored_entities if monitored_entities else true }}
+  triggered_entity: "{{ trigger.entity_id }}"
 
 action:
   # 1. Envia notificação de alerta
@@ -64,23 +57,21 @@ action:
     title: "⚠️ Sensor de Movimento Encravado"
     message: "O sensor '{{ sensor_name }}' está continuamente detetado há mais de {{ stuck_timeout }} minutos. A reiniciar integração MQTT..."
     data:
-      tag: "stuck_sensor_{{ trigger.entity_id | replace('.', '_') }}"
+      tag: "stuck_sensor_{{ triggered_entity | replace('.', '_') }}"
 
-  # 2. Reinicia a Integração MQTT / Broker
+  # 2. Reinicia a Integração MQTT
   - service: homeassistant.reload_config_entry
     target:
       entity_id: mqtt.mqtt
     continue_on_error: true
 
-  # Caso o reload por entidade falhe em algumas versões, força via reinício do serviço MQTT
   - service: mqtt.reload
     continue_on_error: true
 
-  # 3. Aguarda que o sensor volte a "off" (com timeout máximo de 10 minutos pós-reset)
+  # 3. Aguarda que o sensor específico que disparou a automação volte a "off"
   - wait_for_trigger:
-      - platform: state
-        entity_id: "{{ trigger.entity_id }}"
-        to: "off"
+      - platform: template
+        value_template: "{{ is_state(triggered_entity, 'off') }}"
     timeout:
       minutes: 10
     continue_on_timeout: true
@@ -92,4 +83,4 @@ action:
     title: "✅ Sensor Resolvido"
     message: "O sensor '{{ sensor_name }}' voltou ao estado inativo/desocupado com sucesso."
     data:
-      tag: "stuck_sensor_{{ trigger.entity_id | replace('.', '_') }}"
+      tag: "stuck_sensor_{{ triggered_entity | replace('.', '_') }}"
