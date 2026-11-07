@@ -6,7 +6,8 @@ blueprint:
     As mensagens de problema e de resolvido são opcionais; a de falha também,
     mas é a que se recomenda manter.
   domain: automation
-  min_version: 2024.11.0
+  homeassistant:
+    min_version: 2024.10.0
   input:
     sensores_section:
       name: Sensores
